@@ -1,6 +1,6 @@
 """LLM 相关服务"""
-from typing import List, Dict, Any
-from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository,LLMModelRepository
+from typing import List, Dict, Any, Optional, Tuple
+from app.infrastructure.database.repositories.llm_repository import LLMAuditLogRepository, LLMProviderRepository,LLMModelRepository
 
 from app.infrastructure.database.repositories.user_repository import UserRepository
 from app.core.exceptions import ValidationException, ConflictException
@@ -385,7 +385,7 @@ class LLMAuditService:
     
     def __init__(
         self, 
-        audit_repository: LLMAuditRepository,
+        audit_repository: LLMAuditLogRepository,
         provider_repository: Optional[LLMProviderRepository] = None,
         model_repository: Optional[LLMModelRepository] = None,
         user_repository: Optional[UserRepository] = None

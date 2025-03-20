@@ -26,3 +26,9 @@ class ValidationException(APIException):
     def __init__(self, message="数据验证失败"):
         from app.core.status_codes import PARAMETER_ERROR
         super().__init__(message, PARAMETER_ERROR, 400)
+
+class ConflictException(APIException):
+    """资源冲突异常"""
+    def __init__(self, message="资源已存在"):
+        from app.core.status_codes import PARAMETER_ERROR
+        super().__init__(message, PARAMETER_ERROR, 409)

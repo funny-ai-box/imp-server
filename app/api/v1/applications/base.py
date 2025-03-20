@@ -4,7 +4,7 @@ from app.core.exceptions import ValidationException, NotFoundException
 from app.domains.applications.services.base_service import ApplicationService
 from app.infrastructure.database.repositories.application_repository import ApplicationRepository
 from app.infrastructure.database.repositories.user_repository import UserRepository
-from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository
+
 from app.api.middleware.auth import auth_required
 
 applications_bp = Blueprint("applications", __name__)

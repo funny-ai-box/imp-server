@@ -240,7 +240,7 @@ class LLMProviderRepository:
             LLMProvider.user_id == user_id
         ).all()
     
-class LLMAuditRepository:
+class LLMAuditLogRepository:
     """LLM审计日志存储库"""
     
     def __init__(self, db_session: Session):
