@@ -11,6 +11,10 @@ def create_app(config_class=Config):
     # 初始化扩展
     register_extensions(app)
     
+    # 初始化RSA密钥
+    from app.utils.rsa_util import init_rsa_keys
+    init_rsa_keys(app)
+    
     # 注册蓝图
     register_blueprints(app)
     

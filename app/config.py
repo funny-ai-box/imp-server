@@ -39,6 +39,14 @@ class Config:
     # 日志配置
     LOG_LEVEL = "INFO"
     
+    # 密码加密相关配置
+    PASSWORD_SALT = os.environ.get('PASSWORD_SALT', 'default-salt-change-in-production')
+    
+    # RSA配置
+    RSA_KEY_SIZE = 2048
+    RSA_PRIVATE_KEY = None  # 将在应用初始化时设置
+    RSA_PUBLIC_KEY = None   # 将在应用初始化时设置
+    
     # 从环境变量加载配置
     @classmethod
     def init_app(cls, app):
