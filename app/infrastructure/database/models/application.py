@@ -1,10 +1,10 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-from app.infrastructure.database.base import Base
+from app.extensions import db
 
 
-class Application(Base):
+class Application(db.Model):
     """应用模型，用于外部系统关联用户和配置"""
     __tablename__ = "applications"
 
@@ -18,7 +18,8 @@ class Application(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户ID")
     
     # 关联关系
-    user = relationship("User", back_populates="applications")
+    users = relationship("User", secondary="user_application", back_populates="applications")
+    llm_audit_logs = relationship("LLMAuditLog", back_populates="application")
 
     def __repr__(self):
         return f"<Application {self.name}>"

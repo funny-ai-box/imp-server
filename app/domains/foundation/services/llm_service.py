@@ -1,23 +1,15 @@
-# app/domains/model_management/services/ai_provider_service.py
-import uuid
+"""LLM 相关服务"""
 from typing import List, Dict, Any
-from app.infrastructure.database.repositories.llm_repository import AIProviderRepository
+from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository
+from app.infrastructure.database.repositories.llm_model_repository import LLMModelRepository
 from app.infrastructure.database.repositories.user_repository import UserRepository
 from app.core.exceptions import ValidationException, ConflictException
-from app.core.status_codes import PROVIDER_VALIDATION_ERROR, PROVIDER_ALREADY_EXISTS,MODEL_VALIDATION_ERROR
-    
-
-from app.infrastructure.database.repositories.llm_model_repository import AIModelRepository
-from app.infrastructure.database.repositories.llm_repository import AIProviderRepository
-
-
-
-
+from app.core.status_codes import PROVIDER_VALIDATION_ERROR, PROVIDER_ALREADY_EXISTS, MODEL_VALIDATION_ERROR
 
 class LLMProviderService:
     """AI提供商服务"""
     
-    def __init__(self, provider_repository: AIProviderRepository, user_repository: UserRepository):
+    def __init__(self, provider_repository: LLMProviderRepository, user_repository: UserRepository):
         """
         初始化服务
         
@@ -201,14 +193,13 @@ class LLMProviderService:
             "is_active": provider.is_active,
             "created_at": provider.created_at.isoformat() if provider.created_at else None,
             "updated_at": provider.updated_at.isoformat() if provider.updated_at else None,
-            "user": user_info,  # 包含用户信息，明确表示这是用户自己的配置
-            "note": "此配置使用的是用户自己的API密钥"  # 添加说明
+            "user": user_info  # 包含用户信息，明确表示这是用户自己的配置
         }
 
 class LLMModelService:
     """AI模型服务"""
     
-    def __init__(self, model_repository: AIModelRepository, provider_repository: AIProviderRepository):
+    def __init__(self, model_repository: LLMModelRepository, provider_repository: LLMProviderRepository):
         """
         初始化服务
         
@@ -388,3 +379,264 @@ class LLMModelService:
             "created_at": model.created_at.isoformat() if model.created_at else None,
             "updated_at": model.updated_at.isoformat() if model.updated_at else None
         }
+    
+class LLMAuditService:
+    """LLM审计服务"""
+    
+    def __init__(
+        self, 
+        audit_repository: LLMAuditRepository,
+        provider_repository: Optional[LLMProviderRepository] = None,
+        model_repository: Optional[LLMModelRepository] = None,
+        user_repository: Optional[UserRepository] = None
+    ):
+        """
+        初始化服务
+        
+        参数:
+            audit_repository: 审计日志存储库
+            provider_repository: 提供商存储库
+            model_repository: 模型存储库
+            user_repository: 用户存储库
+        """
+        self.audit_repo = audit_repository
+        self.provider_repo = provider_repository
+        self.model_repo = model_repository
+        self.user_repo = user_repository
+    
+    def log_request(
+        self,
+        user_id: int,
+        provider_id: int,
+        model_id: int,
+        request_type: str,
+        prompt: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        app_id: Optional[int] = None,
+        ip_address: Optional[str] = None,
+        user_agent: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        记录请求
+        
+        参数:
+            user_id: 用户ID
+            provider_id: 提供商ID
+            model_id: 模型ID
+            request_type: 请求类型
+            prompt: 提示词
+            parameters: 请求参数
+            app_id: 应用ID
+            ip_address: IP地址
+            user_agent: 用户代理
+            
+        返回:
+            日志对象
+        """
+        # 开始计时
+        start_time = time.time()
+        
+        # 创建日志记录
+        log_data = {
+            "user_id": user_id,
+            "provider_id": provider_id,
+            "model_id": model_id,
+            "request_type": request_type,
+            "prompt": prompt,
+            "parameters": parameters,
+            "app_id": app_id,
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+            "status": "processing"
+        }
+        
+        log = self.audit_repo.create_log(log_data)
+        
+        # 返回日志对象和开始时间（用于后续更新）
+        return {
+            "log_id": log.id,
+            "start_time": start_time
+        }
+    
+    def update_log_success(
+        self,
+        log_id: int,
+        response: str,
+        tokens_used: int,
+        tokens_prompt: int,
+        tokens_completion: int,
+        start_time: float,
+        estimated_cost: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        更新成功日志
+        
+        参数:
+            log_id: 日志ID
+            response: 响应内容
+            tokens_used: 使用的令牌数
+            tokens_prompt: 提示词的令牌数
+            tokens_completion: 补全的令牌数
+            start_time: 开始时间
+            estimated_cost: 估计成本
+            
+        返回:
+            更新后的日志对象
+        """
+        # 计算延迟
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        # 获取日志对象
+        log = self.audit_repo.get_by_id(log_id)
+        
+        # 更新日志
+        log_data = {
+            "response": response,
+            "tokens_used": tokens_used,
+            "tokens_prompt": tokens_prompt,
+            "tokens_completion": tokens_completion,
+            "latency_ms": latency_ms,
+            "status": "success",
+            "estimated_cost": estimated_cost or 0
+        }
+        
+        for key, value in log_data.items():
+            setattr(log, key, value)
+        
+        self.audit_repo.db.commit()
+        self.audit_repo.db.refresh(log)
+        
+        return self._format_log(log)
+    
+    def update_log_error(
+        self,
+        log_id: int,
+        error_message: str,
+        start_time: float
+    ) -> Dict[str, Any]:
+        """
+        更新错误日志
+        
+        参数:
+            log_id: 日志ID
+            error_message: 错误信息
+            start_time: 开始时间
+            
+        返回:
+            更新后的日志对象
+        """
+        # 计算延迟
+        latency_ms = int((time.time() - start_time) * 1000)
+        
+        # 获取日志对象
+        log = self.audit_repo.get_by_id(log_id)
+        
+        # 更新日志
+        log_data = {
+            "error_message": error_message,
+            "latency_ms": latency_ms,
+            "status": "error"
+        }
+        
+        for key, value in log_data.items():
+            setattr(log, key, value)
+        
+        self.audit_repo.db.commit()
+        self.audit_repo.db.refresh(log)
+        
+        return self._format_log(log)
+    
+    def get_user_logs(
+        self,
+        user_id: int,
+        page: int = 1,
+        per_page: int = 20,
+        **filters
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """
+        获取用户日志
+        
+        参数:
+            user_id: 用户ID
+            page: 页码
+            per_page: 每页数量
+            **filters: 过滤条件
+            
+        返回:
+            (日志列表, 总数)
+        """
+        logs, total = self.audit_repo.get_by_user(user_id, page, per_page, **filters)
+        return [self._format_log(log) for log in logs], total
+    
+    def get_user_statistics(
+        self,
+        user_id: int,
+        days: int = 30
+    ) -> Dict[str, Any]:
+        """
+        获取用户统计数据
+        
+        参数:
+            user_id: 用户ID
+            days: 天数
+            
+        返回:
+            统计数据
+        """
+        end_date = datetime.utcnow()
+        start_date = end_date - timedelta(days=days)
+        
+        stats = self.audit_repo.get_user_statistics(user_id, start_date, end_date)
+        
+        # 添加日期范围信息
+        stats["start_date"] = start_date.isoformat()
+        stats["end_date"] = end_date.isoformat()
+        stats["days"] = days
+        
+        return stats
+    
+    def _format_log(self, log) -> Dict[str, Any]:
+        """
+        格式化日志
+        
+        参数:
+            log: 日志对象
+            
+        返回:
+            格式化后的日志
+        """
+        result = {
+            "id": log.id,
+            "user_id": log.user_id,
+            "provider_id": log.provider_id,
+            "model_id": log.model_id,
+            "app_id": log.app_id,
+            "request_type": log.request_type,
+            "prompt": log.prompt,
+            "parameters": log.parameters,
+            "response": log.response,
+            "tokens_used": log.tokens_used,
+            "tokens_prompt": log.tokens_prompt,
+            "tokens_completion": log.tokens_completion,
+            "latency_ms": log.latency_ms,
+            "status": log.status,
+            "error_message": log.error_message,
+            "estimated_cost": log.estimated_cost,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
+            "created_at": log.created_at.isoformat() if log.created_at else None
+        }
+        
+        # 添加关联信息（如果有对应的存储库）
+        if self.provider_repo and hasattr(log, "provider") and log.provider:
+            result["provider_name"] = log.provider.name
+            result["provider_type"] = log.provider.provider_type
+        
+        if self.model_repo and hasattr(log, "model") and log.model:
+            result["model_name"] = log.model.name
+            result["model_id_str"] = log.model.model_id
+        
+        if self.user_repo and hasattr(log, "user") and log.user:
+            result["username"] = log.user.username
+        
+        return result

@@ -72,7 +72,12 @@ class User(db.Model):
     # 关系
     applications = relationship("Application", secondary=user_application, back_populates="users")
     api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
-    audit_logs = relationship("AuditLog", back_populates="user")
+    llm_providers = relationship("LLMProvider", back_populates="user", cascade="all, delete-orphan")
+    llm_audit_logs = relationship("LLMAuditLog", back_populates="user")
+    
+    # 应用配置关系
+    xiaohongshu_configs = relationship("XiaohongshuAppConfig", back_populates="user", cascade="all, delete-orphan")
+    image_classification_configs = relationship("ImageClassificationConfig", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<User {self.username}>"
@@ -119,4 +124,3 @@ class APIKey(db.Model):
     def is_valid(self):
         """API密钥是否有效"""
         return self.active and not self.is_expired
-
