@@ -168,9 +168,11 @@ def init_rsa_keys(app) -> None:
     Args:
         app: Flask应用实例
     """
+    print( "init_rsa_keys" )
     try:
         # 检查是否已配置
-        if 'RSA_PRIVATE_KEY' in app.config and 'RSA_PUBLIC_KEY' in app.config:
+        if app.config.get('RSA_PRIVATE_KEY') and app.config.get('RSA_PUBLIC_KEY'):
+            logger.info("RSA keys already configured")
             return
         
         # 从文件加载密钥(如果文件存在)
@@ -197,9 +199,10 @@ def init_rsa_keys(app) -> None:
         # 存储到应用配置
         app.config['RSA_PRIVATE_KEY'] = private_key
         app.config['RSA_PUBLIC_KEY'] = public_key
-        
+
         logger.info("RSA keys initialized successfully")
     except Exception as e:
+  
         logger.error(f"Failed to initialize RSA keys: {str(e)}")
         # 使用应急密钥对
         private_key, public_key = generate_rsa_keys()

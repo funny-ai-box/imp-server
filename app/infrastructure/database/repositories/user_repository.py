@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any, Union
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.extensions import db
+from sqlalchemy.orm import Session
 from app.infrastructure.database.models.user import User, APIKey, UserRole, UserStatus
 from app.infrastructure.database.models.llm import LLMAuditLog
 
@@ -13,6 +13,14 @@ logger = logging.getLogger(__name__)
 
 class UserRepository:
     """用户数据存储库，负责用户相关数据的持久化操作"""
+
+    def __init__(self, db_session: Session):
+        """初始化存储库
+        
+        Args:
+            db_session: 数据库会话
+        """
+        self.db = db_session
     
     def create(self, user: User) -> User:
         """创建新用户
@@ -27,12 +35,12 @@ class UserRepository:
             SQLAlchemyError: 数据库操作失败
         """
         try:
-            db.session.add(user)
-            db.session.commit()
+            self.db.session.add(user)
+            self.db.session.commit()
             logger.info(f"Created user: {user.username}")
             return user
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to create user: {str(e)}")
             raise
     
@@ -50,11 +58,11 @@ class UserRepository:
         """
         try:
             user.updated_at = datetime.utcnow()
-            db.session.commit()
+            self.db.session.commit()
             logger.info(f"Updated user: {user.username}")
             return user
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to update user: {str(e)}")
             raise
     
@@ -76,12 +84,12 @@ class UserRepository:
                 logger.warning(f"Cannot delete user: User with ID {user_id} not found")
                 return False
             
-            db.session.delete(user)
-            db.session.commit()
+            self.db.session.delete(user)
+            self.db.session.commit()
             logger.info(f"Deleted user: {user.username}")
             return True
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to delete user: {str(e)}")
             raise
     
@@ -299,11 +307,11 @@ class UserRepository:
             SQLAlchemyError: 数据库操作失败
         """
         try:
-            db.session.commit()
+            self.db.session.commit()
             logger.info(f"Updated API key: {api_key.id}")
             return api_key
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to update API key: {str(e)}")
             raise
     
@@ -325,12 +333,12 @@ class UserRepository:
                 logger.warning(f"Cannot delete API key: API key with ID {api_key_id} not found")
                 return False
             
-            db.session.delete(api_key)
-            db.session.commit()
+            self.db.session.delete(api_key)
+            self.db.session.commit()
             logger.info(f"Deleted API key: {api_key_id}")
             return True
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to delete API key: {str(e)}")
             raise
     
@@ -362,11 +370,11 @@ class UserRepository:
                 ip_address=ip_address,
                 user_agent=user_agent
             )
-            db.session.add(log)
-            db.session.commit()
+            self.db.session.add(log)
+            self.db.session.commit()
             return log
         except SQLAlchemyError as e:
-            db.session.rollback()
+            self.db.session.rollback()
             logger.error(f"Failed to log activity: {str(e)}")
             raise
     

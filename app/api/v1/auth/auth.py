@@ -33,11 +33,15 @@ def register():
         raise ValidationException("缺少必要参数: phone, password")
     
     phone = data.get("phone")
+    print(phone)
     encrypted_password = data.get("password")
+    print(encrypted_password)
     username = data.get("username")  # 可选
+
     
     # 初始化存储库和服务
     db_session = get_db_session()
+ 
     auth_repo = AuthRepository(db_session)
     user_repo = UserRepository(db_session)
     auth_service = AuthService(auth_repo, user_repo)
@@ -50,7 +54,6 @@ def register():
     )
     
     return success_response(result, "注册成功")
-
 @auth_bp.route("/login", methods=["POST"])
 def login():
     """手机号密码登录"""

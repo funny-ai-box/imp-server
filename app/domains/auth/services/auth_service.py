@@ -21,6 +21,7 @@ from app.utils.rsa_util import decrypt_with_private_key
 
 logger = logging.getLogger(__name__)
 
+
 class AuthService:
     """认证服务实现"""
     
@@ -50,7 +51,7 @@ class AuthService:
         """
         # 验证手机号格式
         if not self._validate_phone(phone):
-            raise ValidationException("手机号格式不正确", PARAMETER_ERROR)
+            raise ValidationException("手机号格式不正确:{PARAMETER_ERROR}")
         
         # 生成验证码
         code = self._generate_random_code(6)
@@ -86,26 +87,29 @@ class AuthService:
         """
         # 验证手机号格式
         if not self._validate_phone(phone):
-            raise ValidationException("手机号格式不正确", PARAMETER_ERROR)
+            raise ValidationException("手机号格式不正确")
         
         # 解密密码
         try:
             password = decrypt_with_private_key(encrypted_password)
+            print(password)
         except Exception as e:
+            
             logger.error(f"Password decryption failed: {str(e)}")
-            raise ValidationException("密码解密失败", PARAMETER_ERROR)
+            raise ValidationException("密码解密失败")
         
         # 检查密码强度
         if not self._check_password_strength(password):
-            raise ValidationException("密码强度不足，需要包含数字、字母和特殊字符，长度至少8位", PARAMETER_ERROR)
-        
+            raise ValidationException("密码强度不足，需要包含数字、字母和特殊字符，长度至少8位")
+        print("----------------------")
         # 检查手机号是否已注册
         if self.auth_repo.find_user_by_phone(phone):
-            raise APIException("该手机号已注册", USER_ALREADY_EXISTS)
+            raise APIException("该手机号已注册")
         
         try:
             # 密码加盐哈希
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')
+            print(password_hash)
             
             # 注册用户
             user = self.auth_repo.register_user(
@@ -129,6 +133,8 @@ class AuthService:
                 "token": token
             }
         except Exception as e:
+            print("注册失败")
+            print(e)
             logger.error(f"Registration failed: {str(e)}")
             raise APIException(f"注册失败: {str(e)}", AUTH_FAILED)
     

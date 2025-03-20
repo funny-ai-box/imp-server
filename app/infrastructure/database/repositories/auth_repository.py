@@ -81,7 +81,7 @@ class AuthRepository:
             # 如果未提供用户名，使用手机号
             if not username:
                 username = phone
-            
+            print(username)
             # 创建用户对象
             user = User(
                 username=username,
@@ -113,8 +113,10 @@ class AuthRepository:
         Returns:
             用户对象或None
         """
+        print("find_user_by_phone")
         try:
             return self.db.query(User).filter(User.phone == phone).first()
         except SQLAlchemyError as e:
+            print(e)
             logger.error(f"Error finding user by phone: {str(e)}")
             return None

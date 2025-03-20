@@ -1,18 +1,20 @@
 from flask import Flask
 from app.extensions import db, migrate, cors, jwt
 from app.config import AppConfig as Config
+from app.utils.rsa_util import init_rsa_keys
 
 def create_app(config_class=Config):
     """创建Flask应用实例"""
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_class)
     app.config.from_pyfile('config.py', silent=True)
-    
+
+
     # 初始化扩展
     register_extensions(app)
     
     # 初始化RSA密钥
-    from app.utils.rsa_util import init_rsa_keys
+
     init_rsa_keys(app)
     
     # 注册蓝图
