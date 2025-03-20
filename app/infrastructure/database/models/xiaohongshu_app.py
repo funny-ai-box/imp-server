@@ -1,7 +1,7 @@
 # app/infrastructure/database/models/xiaohongshu_app.py
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime,  JSON, Float
+
 from app.extensions import db
 
 class XiaohongshuAppConfig(db.Model):
@@ -13,8 +13,8 @@ class XiaohongshuAppConfig(db.Model):
     description = Column(Text, nullable=True, comment="配置描述")
     
     # 模型配置
-    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="使用的AI提供商ID")
-    model_id = Column(Integer, ForeignKey("ai_models.id"), nullable=False, comment="使用的AI模型ID")
+    provider_id = Column(Integer, nullable=False, comment="使用的AI提供商ID")
+    model_id = Column(Integer, nullable=False, comment="使用的AI模型ID")
     
     # 生成配置
     system_prompt = Column(Text, nullable=True, comment="系统提示词")
@@ -33,13 +33,8 @@ class XiaohongshuAppConfig(db.Model):
     is_default = Column(Boolean, default=False, comment="是否为默认配置")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户ID")
+    user_id = Column(Integer,  nullable=False, comment="所属用户ID")
     
-    # 关联关系
-    user = relationship("User", back_populates="xiaohongshu_configs")
-    provider = relationship("LLMProvider")
-    model = relationship("LLMModel")
-    generations = relationship("XiaohongshuGeneration", back_populates="config")
 
     def __repr__(self):
         return f"<XiaohongshuAppConfig {self.name}>"
@@ -54,8 +49,8 @@ class XiaohongshuGeneration(db.Model):
     # 请求信息
     prompt = Column(Text, nullable=False, comment="用户提供的提示词")
     image_urls = Column(JSON, nullable=True, comment="图片URL列表")
-    config_id = Column(Integer, ForeignKey("xiaohongshu_app_configs.id"), nullable=False, comment="使用的配置ID")
-    app_id = Column(Integer, ForeignKey("applications.id"), nullable=True, comment="调用的应用ID")
+    config_id = Column(Integer, nullable=False, comment="使用的配置ID")
+    app_id = Column(Integer, nullable=True, comment="调用的应用ID")
     
     # 生成结果
     title = Column(String(255), nullable=True, comment="生成的标题")
@@ -72,16 +67,13 @@ class XiaohongshuGeneration(db.Model):
     ip_address = Column(String(50), nullable=True, comment="请求IP")
     user_agent = Column(String(255), nullable=True, comment="用户代理")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户ID")
+    user_id = Column(Integer, nullable=False, comment="所属用户ID")
     
     # 评价信息
     user_rating = Column(Integer, nullable=True, comment="用户评分(1-5)")
     user_feedback = Column(Text, nullable=True, comment="用户反馈")
     
-    # 关联关系
-    user = relationship("User")
-    config = relationship("XiaohongshuAppConfig", back_populates="generations")
-    application = relationship("Application")
+
 
     def __repr__(self):
         return f"<XiaohongshuGeneration {self.id}>"
@@ -108,10 +100,8 @@ class XiaohongshuTestResult(db.Model):
     # 系统信息
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户ID")
-    
-    # 关联关系
-    user = relationship("User")
+    user_id = Column(Integer,  nullable=False, comment="所属用户ID")
+
 
     def __repr__(self):
         return f"<XiaohongshuTestResult {self.test_name}>"

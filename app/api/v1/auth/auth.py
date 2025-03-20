@@ -46,14 +46,16 @@ def register():
     user_repo = UserRepository(db_session)
     auth_service = AuthService(auth_repo, user_repo)
     
-    # 注册用户
+    
+  
     result = auth_service.register_with_phone_password(
         phone=phone,
         encrypted_password=encrypted_password,
         username=username
-    )
+        )
     
     return success_response(result, "注册成功")
+ 
 @auth_bp.route("/login", methods=["POST"])
 def login():
     """手机号密码登录"""

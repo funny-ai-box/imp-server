@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any, Union
 from sqlalchemy.exc import SQLAlchemyError
 
 from sqlalchemy.orm import Session
-from app.infrastructure.database.models.user import User, APIKey, UserRole, UserStatus
+from app.infrastructure.database.models.user import User, UserRole, UserStatus
 from app.infrastructure.database.models.llm import LLMAuditLog
 
 logger = logging.getLogger(__name__)
@@ -155,23 +155,7 @@ class UserRepository:
             logger.error(f"Error finding user by username or email: {str(e)}")
             return None
     
-    def find_by_api_key(self, api_key: str) -> Optional[User]:
-        """通过API密钥查找用户
-        
-        Args:
-            api_key: API密钥
-            
-        Returns:
-            用户对象或None
-        """
-        try:
-            api_key_record = APIKey.query.filter_by(key=api_key).first()
-            if api_key_record:
-                return api_key_record.user
-            return None
-        except SQLAlchemyError as e:
-            logger.error(f"Error finding user by API key: {str(e)}")
-            return None
+
     
     def find_by_reset_token(self, token: str) -> Optional[User]:
         """通过密码重置令牌查找用户
@@ -240,108 +224,8 @@ class UserRepository:
         except SQLAlchemyError as e:
             logger.error(f"Error finding users: {str(e)}")
             return [], 0
-    
-    def find_api_key(self, key: str) -> Optional[APIKey]:
-        """查找API密钥
-        
-        Args:
-            key: API密钥
-            
-        Returns:
-            API密钥对象或None
-        """
-        try:
-            return APIKey.query.filter_by(key=key).first()
-        except SQLAlchemyError as e:
-            logger.error(f"Error finding API key: {str(e)}")
-            return None
-    
-    def get_api_keys(self, user_id: int) -> List[APIKey]:
-        """获取用户的API密钥列表
-        
-        Args:
-            user_id: 用户ID
-            
-        Returns:
-            API密钥列表
-        """
-        try:
-            return APIKey.query.filter_by(user_id=user_id).all()
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting API keys: {str(e)}")
-            return []
-    
-    def create_api_key(self, api_key_data: Dict[str, Any]) -> APIKey:
-        """创建API密钥
-        
-        Args:
-            api_key_data: API密钥数据
-            
-        Returns:
-            创建的API密钥对象
-            
-        Raises:
-            SQLAlchemyError: 数据库操作失败
-        """
-        try:
-            api_key = APIKey(**api_key_data)
-            db.session.add(api_key)
-            db.session.commit()
-            logger.info(f"Created API key for user ID: {api_key.user_id}")
-            return api_key
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            logger.error(f"Failed to create API key: {str(e)}")
-            raise
-    
-    def update_api_key(self, api_key: APIKey) -> APIKey:
-        """更新API密钥
-        
-        Args:
-            api_key: API密钥对象
-            
-        Returns:
-            更新后的API密钥对象
-            
-        Raises:
-            SQLAlchemyError: 数据库操作失败
-        """
-        try:
-            self.db.session.commit()
-            logger.info(f"Updated API key: {api_key.id}")
-            return api_key
-        except SQLAlchemyError as e:
-            self.db.session.rollback()
-            logger.error(f"Failed to update API key: {str(e)}")
-            raise
-    
-    def delete_api_key(self, api_key_id: int) -> bool:
-        """删除API密钥
-        
-        Args:
-            api_key_id: API密钥ID
-            
-        Returns:
-            是否成功删除
-            
-        Raises:
-            SQLAlchemyError: 数据库操作失败
-        """
-        try:
-            api_key = APIKey.query.get(api_key_id)
-            if not api_key:
-                logger.warning(f"Cannot delete API key: API key with ID {api_key_id} not found")
-                return False
-            
-            self.db.session.delete(api_key)
-            self.db.session.commit()
-            logger.info(f"Deleted API key: {api_key_id}")
-            return True
-        except SQLAlchemyError as e:
-            self.db.session.rollback()
-            logger.error(f"Failed to delete API key: {str(e)}")
-            raise
-    
+
+
     def log_activity(self, user_id: int, action: str, resource_type: Optional[str] = None, resource_id: Optional[str] = None, details: Optional[str] = None, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> LLMAuditLog:
         """记录用户活动
         

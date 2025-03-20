@@ -1,7 +1,7 @@
 """LLM提供商模型"""
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, Float
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON, Float
+
 from app.extensions import db
 
 
@@ -18,12 +18,7 @@ class LLMProvider(db.Model):
     is_active = Column(Boolean, default=True, comment="是否启用")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="所属用户ID")
-    
-    # 关联关系
-    user = relationship("User", back_populates="llm_providers")
-    models = relationship("LLMModel", back_populates="provider", cascade="all, delete-orphan")
-    audit_logs = relationship("LLMAuditLog", back_populates="provider")
+    user_id = Column(Integer,  nullable=False, comment="所属用户ID")
 
     def __repr__(self):
         return f"<LLMProvider {self.name} - {self.provider_type}>"
@@ -37,10 +32,10 @@ class LLMAuditLog(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # 关联信息
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, comment="用户ID")
-    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="提供商ID")
-    model_id = Column(Integer, ForeignKey("llm_models.id"), nullable=False, comment="模型ID")
-    app_id = Column(Integer, ForeignKey("applications.id"), nullable=True, comment="应用ID")
+    user_id = Column(Integer, nullable=False, comment="用户ID")
+    provider_id = Column(Integer, nullable=False, comment="提供商ID")
+    model_id = Column(Integer, nullable=False, comment="模型ID")
+    app_id = Column(Integer,  nullable=True, comment="应用ID")
     
     # 请求信息
     request_type = Column(String(50), nullable=False, comment="请求类型，如chat, completion, embedding")
@@ -66,11 +61,6 @@ class LLMAuditLog(db.Model):
     user_agent = Column(String(255), nullable=True, comment="用户代理")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     
-    # 关联关系
-    user = relationship("User", back_populates="llm_audit_logs")
-    provider = relationship("LLMProvider", back_populates="audit_logs")
-    model = relationship("LLMModel", back_populates="audit_logs")
-    application = relationship("Application", back_populates="llm_audit_logs")
 
     def __repr__(self):
         return f"<LLMAuditLog {self.id}>"
@@ -91,11 +81,7 @@ class LLMModel(db.Model):
     is_available = Column(Boolean, default=True, comment="是否可用")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="所属提供商ID")
-    
-    # 关联关系
-    provider = relationship("LLMProvider", back_populates="models")
-    audit_logs = relationship("LLMAuditLog", back_populates="model")
+    provider_id = Column(Integer,  nullable=False, comment="所属提供商ID")
 
     def __repr__(self):
         return f"<LLMModel {self.name}>"

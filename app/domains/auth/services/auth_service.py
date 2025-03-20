@@ -97,15 +97,13 @@ class AuthService:
             
             logger.error(f"Password decryption failed: {str(e)}")
             raise ValidationException("密码解密失败")
-        
-        # 检查密码强度
-        if not self._check_password_strength(password):
-            raise ValidationException("密码强度不足，需要包含数字、字母和特殊字符，长度至少8位")
-        print("----------------------")
+        print("------1----------------")
+       
         # 检查手机号是否已注册
         if self.auth_repo.find_user_by_phone(phone):
+            
             raise APIException("该手机号已注册")
-        
+    
         try:
             # 密码加盐哈希
             password_hash = generate_password_hash(password, method='pbkdf2:sha256')

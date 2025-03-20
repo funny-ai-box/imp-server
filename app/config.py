@@ -60,7 +60,7 @@ class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
     SQLALCHEMY_ECHO = True
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://username:password@localhost/imp_db"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:123456@localhost/imp_db"
 
 class TestingConfig(Config):
     """测试环境配置"""
