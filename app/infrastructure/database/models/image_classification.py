@@ -13,7 +13,7 @@ class ImageClassificationConfig(db.Model):
     description = Column(Text, nullable=True, comment="配置描述")
     
     # 模型配置
-    provider_id = Column(Integer, ForeignKey("ai_providers.id"), nullable=False, comment="使用的AI提供商ID")
+    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="使用的AI提供商ID")
     model_id = Column(Integer, ForeignKey("ai_models.id"), nullable=False, comment="使用的AI模型ID")
     
     # 分类配置
@@ -32,8 +32,8 @@ class ImageClassificationConfig(db.Model):
     
     # 关联关系
     user = relationship("User", back_populates="image_classification_configs")
-    provider = relationship("AIProvider")
-    model = relationship("AIModel")
+    provider = relationship("LLMProvider")
+    model = relationship("LLMModel")
     classifications = relationship("ImageClassification", back_populates="config")
 
     def __repr__(self):

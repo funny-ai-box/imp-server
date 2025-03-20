@@ -6,13 +6,13 @@ import logging
 from openai import OpenAI, APIError, RateLimitError, APIConnectionError
 from tiktoken import encoding_for_model
 
-from app.infrastructure.llm_providers.base import AIProviderInterface
+from app.infrastructure.llm_providers.base import LLMProviderInterface
 from app.core.exceptions import APIException
 from app.core.status_codes import OPENAI_API_ERROR, TIMEOUT, RATE_LIMITED
 
 logger = logging.getLogger(__name__)
 
-class OpenAIProvider(AIProviderInterface):
+class OpenLLMProvider(LLMProviderInterface):
     """OpenAI API服务提供商"""
     
     def __init__(self):

@@ -9,11 +9,11 @@ from app.infrastructure.database.repositories.xiaohongshu_repository import (
     XiaohongshuGenerationRepository,
     XiaohongshuTestRepository
 )
-from app.infrastructure.database.repositories.ai_provider_repository import AIProviderRepository
-from app.infrastructure.database.repositories.ai_model_repository import AIModelRepository
-from app.infrastructure.ai_providers.factory import AIProviderFactory
+from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository,LLMModelRepository
+
+from app.infrastructure.llm_providers.factory import LLMProviderFactory
 from app.core.exceptions import ValidationException, NotFoundException, APIException
-from app.core.status_codes import PARAMETER_ERROR, GENERATION_FAILED
+from app.core.status_codes import CONFIG_NOT_FOUND, PARAMETER_ERROR, GENERATION_FAILED
 
 class XiaohongshuConfigService:
     """小红书配置服务"""
@@ -21,8 +21,8 @@ class XiaohongshuConfigService:
     def __init__(
         self, 
         config_repository: XiaohongshuConfigRepository,
-        provider_repository: AIProviderRepository,
-        model_repository: AIModelRepository
+        provider_repository: LLMProviderRepository,
+        model_repository: LLMModelRepository
     ):
         """初始化服务"""
         self.config_repo = config_repository
@@ -198,8 +198,8 @@ class XiaohongshuGenerationService:
         self, 
         generation_repository: XiaohongshuGenerationRepository,
         config_repository: XiaohongshuConfigRepository,
-        provider_repository: AIProviderRepository,
-        model_repository: AIModelRepository
+        provider_repository: LLMProviderRepository,
+        model_repository: LLMModelRepository
     ):
         """初始化服务"""
         self.generation_repo = generation_repository
@@ -273,7 +273,7 @@ class XiaohongshuGenerationService:
             model = self.model_repo.get_by_id(config.model_id, config.provider_id)
             
             # 创建AI提供商实例
-            ai_provider = AIProviderFactory.create_provider(
+            ai_provider = LLMProviderFactory.create_provider(
                 provider.provider_type,
                 provider.api_key,
                 api_base_url=provider.api_base_url,

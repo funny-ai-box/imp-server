@@ -21,4 +21,8 @@ class AuthenticationException(APIException):
         from app.core.status_codes import AUTH_FAILED
         super().__init__(message, AUTH_FAILED, 401)
 
-# 添加更多特定异常...
+class ValidationException(APIException):
+    """数据验证失败异常"""
+    def __init__(self, message="数据验证失败"):
+        from app.core.status_codes import PARAMETER_ERROR
+        super().__init__(message, PARAMETER_ERROR, 400)

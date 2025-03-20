@@ -2,7 +2,7 @@
 from flask import Blueprint, request, g, current_app
 from app.core.responses import success_response
 from app.core.exceptions import ValidationException
-from app.domains.content_generation.services.xiaohongshu_service import (
+from app.domains.applications.services.xiaohongshu_service import (
     XiaohongshuConfigService,
     XiaohongshuGenerationService,
     XiaohongshuTestService
@@ -12,8 +12,8 @@ from app.infrastructure.database.repositories.xiaohongshu_repository import (
     XiaohongshuGenerationRepository,
     XiaohongshuTestRepository
 )
-from app.infrastructure.database.repositories.ai_provider_repository import AIProviderRepository
-from app.infrastructure.database.repositories.ai_model_repository import AIModelRepository
+from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository, LLMModelRepository, LLMProviderRepository
+
 from app.infrastructure.database.repositories.application_repository import ApplicationRepository
 from app.api.middleware.auth import auth_required
 from app.api.middleware.app_key_auth import app_key_required
@@ -30,8 +30,8 @@ def list_configs():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 获取配置列表
@@ -49,8 +49,8 @@ def get_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 获取配置
@@ -68,8 +68,8 @@ def get_default_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 获取默认配置
@@ -95,8 +95,8 @@ def create_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 创建配置
@@ -119,8 +119,8 @@ def update_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 更新配置
@@ -138,8 +138,8 @@ def delete_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 删除配置
@@ -157,8 +157,8 @@ def set_default_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 设置默认配置
@@ -195,8 +195,8 @@ def generate_content():
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -243,8 +243,8 @@ def list_generations():
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -275,8 +275,8 @@ def get_generation(generation_id):
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -309,8 +309,8 @@ def rate_generation(generation_id):
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -336,8 +336,8 @@ def delete_generation(generation_id):
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -361,8 +361,8 @@ def get_statistics():
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -389,8 +389,8 @@ def list_tests():
     test_repo = XiaohongshuTestRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
     generation_repo = XiaohongshuGenerationRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
@@ -424,8 +424,8 @@ def get_test(test_id):
     test_repo = XiaohongshuTestRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
     generation_repo = XiaohongshuGenerationRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
@@ -470,8 +470,8 @@ def create_test():
     test_repo = XiaohongshuTestRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
     generation_repo = XiaohongshuGenerationRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
@@ -512,8 +512,8 @@ def select_winner(test_id):
     test_repo = XiaohongshuTestRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
     generation_repo = XiaohongshuGenerationRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
@@ -538,8 +538,8 @@ def delete_test(test_id):
     test_repo = XiaohongshuTestRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
     generation_repo = XiaohongshuGenerationRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
@@ -584,8 +584,8 @@ def external_generate():
     db_session = g.db_session
     generation_repo = XiaohongshuGenerationRepository(db_session)
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     generation_service = XiaohongshuGenerationService(
         generation_repo, config_repo, provider_repo, model_repo
     )
@@ -613,8 +613,8 @@ def external_get_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = XiaohongshuConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     config_service = XiaohongshuConfigService(config_repo, provider_repo, model_repo)
     
     # 获取默认配置

@@ -7,8 +7,8 @@ from app.infrastructure.database.repositories.image_classification_repository im
     ImageClassificationConfigRepository,
     ImageClassificationRepository
 )
-from app.infrastructure.database.repositories.llm_repository import AIProviderRepository
-from app.infrastructure.database.repositories.llm_model_repository import AIModelRepository
+from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository,LLMModelRepository
+
 from app.api.middleware.auth import auth_required
 from app.api.middleware.app_key_auth import app_key_required
 
@@ -24,8 +24,8 @@ def list_configs():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -44,8 +44,8 @@ def get_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -64,8 +64,8 @@ def get_default_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -92,8 +92,8 @@ def create_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -117,8 +117,8 @@ def update_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -137,8 +137,8 @@ def delete_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -157,8 +157,8 @@ def set_default_config(config_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -198,8 +198,8 @@ def classify_image():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -244,8 +244,8 @@ def list_classifications():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -274,8 +274,8 @@ def get_classification(classification_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -306,8 +306,8 @@ def rate_classification(classification_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -331,8 +331,8 @@ def delete_classification(classification_id):
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -354,8 +354,8 @@ def get_statistics():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -398,8 +398,8 @@ def external_classify():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     
@@ -426,8 +426,8 @@ def external_get_config():
     # 初始化存储库和服务
     db_session = g.db_session
     config_repo = ImageClassificationConfigRepository(db_session)
-    provider_repo = AIProviderRepository(db_session)
-    model_repo = AIModelRepository(db_session)
+    provider_repo = LLMProviderRepository(db_session)
+    model_repo = LLMModelRepository(db_session)
     classification_repo = ImageClassificationRepository(db_session)
     service = ImageClassificationService(classification_repo, config_repo, provider_repo, model_repo)
     

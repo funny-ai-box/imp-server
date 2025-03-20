@@ -13,7 +13,7 @@ class XiaohongshuAppConfig(db.Model):
     description = Column(Text, nullable=True, comment="配置描述")
     
     # 模型配置
-    provider_id = Column(Integer, ForeignKey("ai_providers.id"), nullable=False, comment="使用的AI提供商ID")
+    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="使用的AI提供商ID")
     model_id = Column(Integer, ForeignKey("ai_models.id"), nullable=False, comment="使用的AI模型ID")
     
     # 生成配置
@@ -37,8 +37,8 @@ class XiaohongshuAppConfig(db.Model):
     
     # 关联关系
     user = relationship("User", back_populates="xiaohongshu_configs")
-    provider = relationship("AIProvider")
-    model = relationship("AIModel")
+    provider = relationship("LLMProvider")
+    model = relationship("LLMModel")
     generations = relationship("XiaohongshuGeneration", back_populates="config")
 
     def __repr__(self):

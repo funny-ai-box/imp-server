@@ -2,8 +2,8 @@
 import logging
 from typing import Dict, Any, Optional
 
-from app.infrastructure.llm_providers.base import AIProviderInterface
-from app.infrastructure.llm_providers.openai_provider import OpenAIProvider
+from app.infrastructure.llm_providers.base import LLMProviderInterface
+from app.infrastructure.llm_providers.openai_provider import OpenLLMProvider
 from app.infrastructure.llm_providers.anthropic_provider import AnthropicProvider
 from app.core.exceptions import APIException
 from app.core.status_codes import EXTERNAL_API_ERROR
@@ -15,12 +15,12 @@ class LLMProviderFactory:
     
     # 支持的提供商映射
     PROVIDERS = {
-        "openai": OpenAIProvider,
+        "openai": OpenLLMProvider,
         "anthropic": AnthropicProvider,
     }
     
     @classmethod
-    def create_provider(cls, provider_name: str, api_key: str, **config) -> AIProviderInterface:
+    def create_provider(cls, provider_name: str, api_key: str, **config) -> LLMProviderInterface:
         """创建AI提供商实例
         
         Args:

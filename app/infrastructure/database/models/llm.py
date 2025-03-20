@@ -75,22 +75,27 @@ class LLMAuditLog(db.Model):
     def __repr__(self):
         return f"<LLMAuditLog {self.id}>"
     
-class LLMAuditLog(db.Model):
-    """审计日志模型"""
-    __tablename__ = 'llm_audit_logs'
-    
+class LLMModel(db.Model):
+    """LLM模型模型"""
+    __tablename__ = "llm_models"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('users.id'))
-    action = Column(String(50), nullable=False)
-    resource_type = Column(String(50))
-    resource_id = Column(String(50))
-    details = Column(Text)
-    ip_address = Column(String(50))
-    user_agent = Column(String(255))
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    name = Column(String(100), nullable=False, comment="模型名称")
+    model_id = Column(String(100), nullable=False, comment="模型标识符，如gpt-4-turbo")
+    description = Column(Text, nullable=True, comment="模型描述")
+    capabilities = Column(Text, nullable=True, comment="模型能力描述")
+    context_window = Column(Integer, nullable=True, comment="上下文窗口大小")
+    max_tokens = Column(Integer, nullable=True, comment="最大生成令牌数")
+    token_price_input = Column(Float, nullable=True, comment="输入令牌价格")
+    token_price_output = Column(Float, nullable=True, comment="输出令牌价格")
+    is_available = Column(Boolean, default=True, comment="是否可用")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    provider_id = Column(Integer, ForeignKey("llm_providers.id"), nullable=False, comment="所属提供商ID")
     
-    # 关系
-    user = relationship("User", back_populates="audit_logs")
-    
+    # 关联关系
+    provider = relationship("LLMProvider", back_populates="models")
+    audit_logs = relationship("LLMAuditLog", back_populates="model")
+
     def __repr__(self):
-        return f"<AuditLog {self.action} by {self.user_id}>"
+        return f"<LLMModel {self.name}>"

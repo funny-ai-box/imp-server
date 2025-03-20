@@ -6,7 +6,8 @@ from typing import List, Optional, Dict, Any, Union
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
-from app.infrastructure.database.models.user import User, APIKey, UserRole, UserStatus, AuditLog
+from app.infrastructure.database.models.user import User, APIKey, UserRole, UserStatus
+from app.infrastructure.database.models.llm import LLMAuditLog
 
 logger = logging.getLogger(__name__)
 
@@ -333,7 +334,7 @@ class UserRepository:
             logger.error(f"Failed to delete API key: {str(e)}")
             raise
     
-    def log_activity(self, user_id: int, action: str, resource_type: Optional[str] = None, resource_id: Optional[str] = None, details: Optional[str] = None, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> AuditLog:
+    def log_activity(self, user_id: int, action: str, resource_type: Optional[str] = None, resource_id: Optional[str] = None, details: Optional[str] = None, ip_address: Optional[str] = None, user_agent: Optional[str] = None) -> LLMAuditLog:
         """记录用户活动
         
         Args:
@@ -352,7 +353,7 @@ class UserRepository:
             SQLAlchemyError: 数据库操作失败
         """
         try:
-            log = AuditLog(
+            log = LLMAuditLog(
                 user_id=user_id,
                 action=action,
                 resource_type=resource_type,
@@ -369,7 +370,7 @@ class UserRepository:
             logger.error(f"Failed to log activity: {str(e)}")
             raise
     
-    def get_user_activity_logs(self, user_id: int, page: int = 1, per_page: int = 20) -> tuple[List[AuditLog], int]:
+    def get_user_activity_logs(self, user_id: int, page: int = 1, per_page: int = 20) -> tuple[List[LLMAuditLog], int]:
         """获取用户活动日志
         
         Args:
@@ -381,13 +382,13 @@ class UserRepository:
             (日志列表, 总记录数)
         """
         try:
-            query = AuditLog.query.filter_by(user_id=user_id)
+            query = LLMAuditLog.query.filter_by(user_id=user_id)
             
             # 计算总记录数
             total = query.count()
             
             # 应用分页
-            logs = query.order_by(AuditLog.created_at.desc()).paginate(page=page, per_page=per_page).items
+            logs = query.order_by(LLMAuditLog.created_at.desc()).paginate(page=page, per_page=per_page).items
             
             return logs, total
         except SQLAlchemyError as e:

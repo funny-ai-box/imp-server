@@ -6,13 +6,13 @@ import logging
 import anthropic
 from anthropic import Anthropic, APIError, RateLimitError
 
-from app.infrastructure.llm_providers.base import AIProviderInterface
+from app.infrastructure.llm_providers.base import LLMProviderInterface
 from app.core.exceptions import APIException
 from app.core.status_codes import ANTHROPIC_API_ERROR, TIMEOUT, RATE_LIMITED
 
 logger = logging.getLogger(__name__)
 
-class AnthropicProvider(AIProviderInterface):
+class AnthropicProvider(LLMProviderInterface):
     """Anthropic API服务提供商"""
     
     def __init__(self):

@@ -8,9 +8,9 @@ from app.infrastructure.database.repositories.image_classification_repository im
     ImageClassificationConfigRepository,
     ImageClassificationRepository
 )
-from app.infrastructure.database.repositories.ai_provider_repository import AIProviderRepository
-from app.infrastructure.database.repositories.ai_model_repository import AIModelRepository
-from app.infrastructure.ai_providers.factory import AIProviderFactory
+from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository,LLMModelRepository
+
+from app.infrastructure.llm_providers.factory import LLMProviderFactory
 from app.core.exceptions import ValidationException, NotFoundException, APIException
 from app.core.status_codes import (
     PARAMETER_ERROR, CLASSIFICATION_FAILED, 
@@ -24,8 +24,8 @@ class ImageClassificationService:
         self, 
         classification_repository: ImageClassificationRepository,
         config_repository: ImageClassificationConfigRepository,
-        provider_repository: AIProviderRepository,
-        model_repository: AIModelRepository
+        provider_repository: LLMProviderRepository,
+        model_repository: LLMModelRepository
     ):
         """初始化服务"""
         self.classification_repo = classification_repository
@@ -174,7 +174,7 @@ class ImageClassificationService:
             model = self.model_repo.get_by_id(config.model_id, config.provider_id)
             
             # 创建AI提供商实例
-            ai_provider = AIProviderFactory.create_provider(
+            ai_provider = LLMProviderFactory.create_provider(
                 provider.provider_type,
                 provider.api_key,
                 api_base_url=provider.api_base_url,

@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union
 
-class AIProviderInterface(ABC):
+class LLMProviderInterface(ABC):
     """AI模型提供商接口"""
     
     @abstractmethod
