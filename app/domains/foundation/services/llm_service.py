@@ -20,7 +20,7 @@ class LLMProviderService:
         self.provider_repo = provider_repository
         self.user_repo = user_repository
     
-    def get_all_providers(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_all_providers(self) -> List[Dict[str, Any]]:
         """
         获取用户的所有AI提供商
         
@@ -30,24 +30,24 @@ class LLMProviderService:
         返回:
             提供商列表
         """
-        providers = self.provider_repo.get_all_by_user(user_id)
+        providers = self.provider_repo.get_all_providers()
         return [self._format_provider(provider) for provider in providers]
     
-    def get_provider(self, provider_id: int, user_id: str) -> Dict[str, Any]:
+    def get_provider(self, provider_id: int) -> Dict[str, Any]:
         """
         获取特定的AI提供商
         
         参数:
             provider_id: 提供商ID
-            user_id: 用户ID
+
             
         返回:
             提供商信息
         """
-        provider = self.provider_repo.get_by_id(provider_id, user_id)
+        provider = self.provider_repo.get_by_id(provider_id)
         return self._format_provider(provider)
     
-    def create_provider(self, provider_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    def create_provider(self, provider_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         创建新的AI提供商
         
@@ -65,8 +65,7 @@ class LLMProviderService:
         # 验证数据
         self._validate_provider_data(provider_data)
         
-        # 设置用户ID
-        provider_data["user_id"] = user_id
+
         
         # 创建提供商
         try:
@@ -78,7 +77,7 @@ class LLMProviderService:
                 PROVIDER_ALREADY_EXISTS
             )
     
-    def update_provider(self, provider_id: int, provider_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    def update_provider(self, provider_id: int, provider_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         更新AI提供商
         
@@ -93,16 +92,13 @@ class LLMProviderService:
         # 验证数据
         if provider_data:
             self._validate_provider_data(provider_data, is_update=True)
-        
-        # 禁止更新用户ID
-        if "user_id" in provider_data:
-            del provider_data["user_id"]
+
         
         # 更新提供商
-        provider = self.provider_repo.update(provider_id, user_id, provider_data)
+        provider = self.provider_repo.update(provider_id,  provider_data)
         return self._format_provider(provider)
     
-    def delete_provider(self, provider_id: int, user_id: str) -> bool:
+    def delete_provider(self, provider_id: int) -> bool:
         """
         删除AI提供商
         
@@ -113,7 +109,7 @@ class LLMProviderService:
         返回:
             操作是否成功
         """
-        return self.provider_repo.delete(provider_id, user_id)
+        return self.provider_repo.delete(provider_id)
     
     def _validate_provider_data(self, data: Dict[str, Any], is_update: bool = False) -> None:
         """
@@ -170,19 +166,7 @@ class LLMProviderService:
         返回:
             格式化后的提供商数据
         """
-        # 获取用户信息(可选，如果需要在响应中包含用户信息)
-        user = None
-        if self.user_repo:
-            try:
-                user = self.user_repo.find_by_id(provider.user_id)
-            except:
-                pass
-        
-        user_info = {
-            "id": provider.user_id,
-            "username": user.username if user else "未知用户"
-        } if user else {"id": provider.user_id}
-        
+
         return {
             "id": provider.id,
             "name": provider.name,
@@ -193,7 +177,7 @@ class LLMProviderService:
             "is_active": provider.is_active,
             "created_at": provider.created_at.isoformat() if provider.created_at else None,
             "updated_at": provider.updated_at.isoformat() if provider.updated_at else None,
-            "user": user_info  # 包含用户信息，明确表示这是用户自己的配置
+
         }
 
 class LLMModelService:

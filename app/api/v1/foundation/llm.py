@@ -20,9 +20,7 @@ llm_providers_bp = Blueprint("llm_providers", __name__)
 @auth_required
 def list_providers():
     """获取大模型平台列表"""
-    # 获取当前用户ID
-    user_id = g.user_id
-    
+
     # 初始化存储库和服务
     db_session = g.db_session
     provider_repo = LLMProviderRepository(db_session)
@@ -30,7 +28,7 @@ def list_providers():
     provider_service = LLMProviderService(provider_repo, user_repo)
     
     # 获取提供商列表
-    providers = provider_service.get_all_providers(user_id)
+    providers = provider_service.get_all_providers()
     
     return success_response(providers, "获取大模型平台列表成功")
 

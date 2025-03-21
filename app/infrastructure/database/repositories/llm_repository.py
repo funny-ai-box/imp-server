@@ -128,25 +128,23 @@ class LLMProviderRepository:
         """
         self.db = db_session
     
-    def get_all_by_user(self, user_id: str) -> List[LLMProvider]:
+    def get_all_providers(self) -> List[LLMProvider]:
         """
         获取用户的所有AI提供商
-        
-        参数:
-            user_id: 用户ID
+
             
         返回:
             提供商列表
         """
-        return self.db.query(LLMProvider).filter(LLMProvider.user_id == user_id).all()
+        return self.db.query(LLMProvider).all()
     
-    def get_by_id(self, provider_id: int, user_id: str) -> LLMProvider:
+    def get_by_id(self, provider_id: int) -> LLMProvider:
         """
         根据ID获取指定用户的AI提供商
         
         参数:
             provider_id: 提供商ID
-            user_id: 用户ID
+  
             
         返回:
             提供商实例
@@ -156,11 +154,11 @@ class LLMProviderRepository:
         """
         provider = self.db.query(LLMProvider).filter(
             LLMProvider.id == provider_id,
-            LLMProvider.user_id == user_id
+  
         ).first()
         
         if not provider:
-            raise NotFoundException(f"未找到ID为{provider_id}的AI提供商", PROVIDER_NOT_FOUND)
+            raise NotFoundException(f"未找到ID为{provider_id}的AI提供商")
         
         return provider
     
@@ -180,13 +178,12 @@ class LLMProviderRepository:
         self.db.refresh(provider)
         return provider
     
-    def update(self, provider_id: int, user_id: str, provider_data: dict) -> LLMProvider:
+    def update(self, provider_id: int,  provider_data: dict) -> LLMProvider:
         """
         更新AI提供商
         
         参数:
             provider_id: 提供商ID
-            user_id: 用户ID
             provider_data: 要更新的数据
             
         返回:
@@ -195,7 +192,7 @@ class LLMProviderRepository:
         异常:
             NotFoundException: 提供商不存在
         """
-        provider = self.get_by_id(provider_id, user_id)
+        provider = self.get_by_id(provider_id)
         
         for key, value in provider_data.items():
             if hasattr(provider, key):
@@ -205,13 +202,13 @@ class LLMProviderRepository:
         self.db.refresh(provider)
         return provider
     
-    def delete(self, provider_id: int, user_id: str) -> bool:
+    def delete(self, provider_id: int) -> bool:
         """
         删除AI提供商
         
         参数:
             provider_id: 提供商ID
-            user_id: 用户ID
+
             
         返回:
             操作是否成功
@@ -219,25 +216,24 @@ class LLMProviderRepository:
         异常:
             NotFoundException: 提供商不存在
         """
-        provider = self.get_by_id(provider_id, user_id)
+        provider = self.get_by_id(provider_id)
         self.db.delete(provider)
         self.db.commit()
         return True
         
-    def get_by_type(self, provider_type: str, user_id: str) -> List[LLMProvider]:
+    def get_by_type(self, provider_type: str) -> List[LLMProvider]:
         """
         根据类型获取用户的AI提供商
         
         参数:
             provider_type: 提供商类型
-            user_id: 用户ID
+
             
         返回:
             提供商列表
         """
         return self.db.query(LLMProvider).filter(
-            LLMProvider.provider_type == provider_type,
-            LLMProvider.user_id == user_id
+            LLMProvider.provider_type == provider_type
         ).all()
     
 class LLMAuditLogRepository:
@@ -283,7 +279,7 @@ class LLMAuditLogRepository:
         """
         log = self.db.query(LLMAuditLog).get(log_id)
         if not log:
-            raise NotFoundException(f"未找到ID为{log_id}的审计日志", NOT_FOUND)
+            raise NotFoundException(f"未找到ID为{log_id}的审计日志")
         return log
     
     def get_by_user(self, user_id: str, page: int = 1, per_page: int = 20, **filters) -> Tuple[List[LLMAuditLog], int]:

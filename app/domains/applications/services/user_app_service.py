@@ -2,26 +2,29 @@
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
+import logging
 
 from app.core.exceptions import ValidationException, NotFoundException
 from app.core.status_codes import PARAMETER_ERROR, APPLICATION_NOT_FOUND
 from app.infrastructure.database.repositories.user_app_repository import UserAppRepository
 from app.infrastructure.database.repositories.user_llm_config_repository import UserLLMConfigRepository
 
+logger = logging.getLogger(__name__)
+
 class UserAppService:
     """用户应用服务"""
     
-    def __init__(self, user_app_repository: UserAppRepository, user_llm_config_repository: UserLLMConfigRepository = None):
+    def __init__(self, user_app_repository: UserAppRepository, user_llm_config_repository: Optional[UserLLMConfigRepository] = None):
         """初始化服务"""
         self.user_app_repo = user_app_repository
         self.user_llm_config_repo = user_llm_config_repository
     
-    def get_all_apps(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_apps(self, user_id: str) -> List[Dict[str, Any]]:
         """获取用户所有应用"""
         apps = self.user_app_repo.get_all_by_user(user_id)
         return [self._format_app(app) for app in apps]
     
-    def get_app(self, app_id: int, user_id: int) -> Dict[str, Any]:
+    def get_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """获取用户特定应用"""
         app = self.user_app_repo.get_by_id(app_id, user_id)
         return self._format_app(app)
@@ -33,7 +36,7 @@ class UserAppService:
             return None
         return self._format_app(app)
     
-    def add_app(self, app_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def add_app(self, app_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """添加应用到用户列表"""
         # 验证数据
         self._validate_app_data(app_data)
@@ -41,8 +44,12 @@ class UserAppService:
         # 验证LLM配置
         if "user_llm_config_id" in app_data and app_data["user_llm_config_id"] and self.user_llm_config_repo:
             try:
-                self.user_llm_config_repo.get_by_id(app_data["user_llm_config_id"], user_id)
+                llm_config = self.user_llm_config_repo.get_by_id(app_data["user_llm_config_id"], user_id)
+                # 验证LLM配置是否有效
+                if not llm_config.is_active:
+                    raise ValidationException("选择的LLM配置未激活", PARAMETER_ERROR)
             except Exception as e:
+                logger.error(f"LLM config validation error: {str(e)}")
                 raise ValidationException(f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR)
         
         # 设置用户ID和创建时间
@@ -60,7 +67,7 @@ class UserAppService:
         app = self.user_app_repo.create(app_data)
         return self._format_app(app)
     
-    def update_app(self, app_id: int, app_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def update_app(self, app_id: int, app_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """更新用户应用配置"""
         # 获取当前应用
         app = self.user_app_repo.get_by_id(app_id, user_id)
@@ -72,7 +79,12 @@ class UserAppService:
         # 验证LLM配置
         if "user_llm_config_id" in app_data and app_data["user_llm_config_id"] and self.user_llm_config_repo:
             try:
-                self.user_llm_config_repo.get_by_id(app_data["user_llm_config_id"], user_id)
+                llm_config = self.user_llm_config_repo.get_by_id(app_data["user_llm_config_id"], user_id)
+                # 验证LLM配置是否有效
+                if not llm_config.is_active:
+                    raise ValidationException("选择的LLM配置未激活", PARAMETER_ERROR)
+            except NotFoundException:
+                raise ValidationException("指定的LLM配置不存在或不属于当前用户", PARAMETER_ERROR)
             except Exception as e:
                 raise ValidationException(f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR)
         
@@ -91,7 +103,7 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, app_data)
         return self._format_app(app)
     
-    def publish_app(self, app_id: int, user_id: int) -> Dict[str, Any]:
+    def publish_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """发布应用配置"""
         # 获取当前应用
         app = self.user_app_repo.get_by_id(app_id, user_id)
@@ -100,11 +112,24 @@ class UserAppService:
         if not app.config:
             raise ValidationException("应用配置不能为空", PARAMETER_ERROR)
         
-        if "provider_type" not in app.config:
-            raise ValidationException("应用配置必须指定大模型提供商类型", PARAMETER_ERROR)
+        # 如果有关联的LLM配置，验证该配置是否有效
+        user_llm_config_id = app.user_llm_config_id
+        if user_llm_config_id and self.user_llm_config_repo:
+            try:
+                user_llm_config = self.user_llm_config_repo.get_by_id(user_llm_config_id, user_id)
+                if not user_llm_config.is_active:
+                    raise ValidationException("关联的LLM配置未激活，无法发布", PARAMETER_ERROR)
+            except NotFoundException:
+                raise ValidationException("关联的LLM配置不存在，无法发布", PARAMETER_ERROR)
+        else:
+            raise ValidationException("未关联LLM配置，无法发布", PARAMETER_ERROR)
         
-        if "model_id" not in app.config:
-            raise ValidationException("应用配置必须指定模型ID", PARAMETER_ERROR)
+        # 根据应用类型验证必要配置
+        if app.app_type == "xhs_copy":
+            required_fields = ["system_prompt", "user_prompt_template", "temperature", "max_tokens"]
+            missing_fields = [field for field in required_fields if field not in app.config]
+            if missing_fields:
+                raise ValidationException(f"应用配置缺少必要字段: {', '.join(missing_fields)}", PARAMETER_ERROR)
         
         # 保存当前配置作为发布配置
         published_config = {
@@ -112,6 +137,8 @@ class UserAppService:
             "name": app.name,
             "description": app.description,
             "config": app.config,
+            "user_llm_config_id": app.user_llm_config_id,
+            "config_id": app.config.get("config_id"),  # 保存配置ID方便后续引用
             "published_at": datetime.utcnow().isoformat()
         }
         
@@ -125,7 +152,7 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)
     
-    def unpublish_app(self, app_id: int, user_id: int) -> Dict[str, Any]:
+    def unpublish_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """取消发布应用"""
         # 更新发布状态
         update_data = {
@@ -136,11 +163,11 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)
     
-    def delete_app(self, app_id: int, user_id: int) -> bool:
+    def delete_app(self, app_id: int, user_id: str) -> bool:
         """从用户列表删除应用"""
         return self.user_app_repo.delete(app_id, user_id)
     
-    def regenerate_app_key(self, app_id: int, user_id: int) -> Dict[str, Any]:
+    def regenerate_app_key(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """重新生成应用密钥"""
         # 生成新密钥
         new_key = self._generate_app_key()
@@ -169,12 +196,31 @@ class UserAppService:
         
         # 应用类型验证
         if "app_type" in data:
-            valid_types = ["xhs_copy"] 
+            valid_types = ["xhs_copy"]  # 后续可以添加更多支持的类型
             if data["app_type"] not in valid_types:
                 raise ValidationException(
                     f"无效的应用类型: {data['app_type']}，有效类型: {', '.join(valid_types)}", 
                     PARAMETER_ERROR
                 )
+        
+        # 如果包含配置数据，验证配置
+        if "config" in data and data["config"]:
+            config = data["config"]
+            app_type = data.get("app_type")
+            
+            # 针对不同应用类型验证配置
+            if app_type == "xhs_copy":
+                # 验证温度参数
+                if "temperature" in config and (not isinstance(config["temperature"], (int, float)) 
+                                               or config["temperature"] < 0 
+                                               or config["temperature"] > 1):
+                    raise ValidationException("temperature必须在0-1之间", PARAMETER_ERROR)
+                
+                # 验证最大tokens
+                if "max_tokens" in config and (not isinstance(config["max_tokens"], int) 
+                                              or config["max_tokens"] < 100 
+                                              or config["max_tokens"] > 4000):
+                    raise ValidationException("max_tokens必须在100-4000之间", PARAMETER_ERROR)
     
     def _generate_app_key(self) -> str:
         """生成应用密钥"""
@@ -198,5 +244,17 @@ class UserAppService:
         # 添加发布配置信息
         if app.published and app.published_config:
             result["published_config"] = app.published_config
+            # 添加发布日期
+            if "published_at" in app.published_config:
+                result["published_at"] = app.published_config["published_at"]
+        
+        # 添加LLM配置名称（如果可用）
+        if app.user_llm_config_id and self.user_llm_config_repo:
+            try:
+                llm_config = self.user_llm_config_repo.get_by_id(app.user_llm_config_id, app.user_id)
+                result["llm_config_name"] = llm_config.name
+                result["llm_provider_type"] = llm_config.provider_type
+            except Exception as e:
+                logger.error(f"Error fetching LLM config details: {str(e)}")
         
         return result
