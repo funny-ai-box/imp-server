@@ -13,7 +13,7 @@ external_forbidden_words_bp = Blueprint("external_forbidden_words", __name__, ur
 def get_forbidden_words_list():
     """获取违禁词列表（外部调用）"""
     # 获取查询参数
-    application = request.args.get("application", "xiaohongshu")  # 默认为小红书应用
+    application = request.args.get("application", "xhs_copy")  # 默认为小红书应用
     
     # 初始化存储库和服务
     db_session = g.db_session
@@ -39,7 +39,7 @@ def check_content():
         raise ValidationException("内容不能为空")
     
     content = data.get("content")
-    application = data.get("application", "xiaohongshu")  # 默认为小红书应用
+    application = data.get("application", "xhs_copy")  # 默认为小红书应用
     
     # 初始化存储库和服务
     db_session = g.db_session
@@ -60,7 +60,7 @@ def check_content():
 def get_ai_prompt():
     """获取给AI的提示词，告知违禁词列表（外部调用）"""
     # 获取查询参数
-    application = request.args.get("application", "xiaohongshu")  # 默认为小红书应用
+    application = request.args.get("application", "xhs_copy")  # 默认为小红书应用
     
     # 初始化存储库和服务
     db_session = g.db_session

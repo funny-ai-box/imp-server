@@ -1,13 +1,14 @@
-# app/domains/content_generation/services/xiaohongshu_service.py
+# app/domains/content_generation/services/xhs_copy_service.py
 import json
 import time
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 
-from app.infrastructure.database.repositories.xiaohongshu_repository import (
-    XiaohongshuConfigRepository, 
-    XiaohongshuGenerationRepository,
-    XiaohongshuTestRepository
+from app.infrastructure.database.repositories.user_llm_config_repository import UserLLMConfigRepository
+from app.infrastructure.database.repositories.xhs_copy_repository import (
+    XhsCopyConfigRepository, 
+    XhsCopyGenerationRepository,
+    XhsCopyTestRepository
 )
 from app.infrastructure.database.repositories.llm_repository import LLMProviderRepository,LLMModelRepository
 
@@ -15,51 +16,104 @@ from app.infrastructure.llm_providers.factory import LLMProviderFactory
 from app.core.exceptions import ValidationException, NotFoundException, APIException
 from app.core.status_codes import CONFIG_NOT_FOUND, PARAMETER_ERROR, GENERATION_FAILED
 
-class XiaohongshuConfigService:
+class XhsCopyConfigService:
     """小红书配置服务"""
     
     def __init__(
         self, 
-        config_repository: XiaohongshuConfigRepository,
+        config_repository: XhsCopyConfigRepository,
         provider_repository: LLMProviderRepository,
-        model_repository: LLMModelRepository
+        model_repository: LLMModelRepository,
+        user_llm_config_repository: UserLLMConfigRepository
     ):
         """初始化服务"""
         self.config_repo = config_repository
         self.provider_repo = provider_repository
         self.model_repo = model_repository
+        self.user_llm_config_repo = user_llm_config_repository
     
-    def get_all_configs(self, user_id: str) -> List[Dict[str, Any]]:
+    def get_all_configs(self, user_id: int) -> List[Dict[str, Any]]:
         """获取用户所有配置"""
         configs = self.config_repo.get_all_by_user(user_id)
-        return [self._format_config(config) for config in configs]
+        result = []
+        
+        for config in configs:
+            formatted_config = self._format_config(config)
+            
+            # 获取关联的用户LLM配置信息
+            if config.user_llm_config_id:
+                try:
+                    llm_config = self.user_llm_config_repo.get_by_id(config.user_llm_config_id, user_id)
+                    formatted_config["llm_config"] = {
+                        "id": llm_config.id,
+                        "name": llm_config.name,
+                        "provider_type": llm_config.provider_type
+                    }
+                except:
+                    formatted_config["llm_config"] = None
+            else:
+                formatted_config["llm_config"] = None
+                
+            result.append(formatted_config)
+            
+        return result
     
-    def get_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
+    def get_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
         """获取特定配置"""
         config = self.config_repo.get_by_id(config_id, user_id)
-        return self._format_config(config)
+        result = self._format_config(config)
+        
+        # 获取关联的用户LLM配置信息
+        if config.user_llm_config_id:
+            try:
+                llm_config = self.user_llm_config_repo.get_by_id(config.user_llm_config_id, user_id)
+                result["llm_config"] = {
+                    "id": llm_config.id,
+                    "name": llm_config.name,
+                    "provider_type": llm_config.provider_type
+                }
+            except:
+                result["llm_config"] = None
+        else:
+            result["llm_config"] = None
+            
+        return result
     
-    def get_default_config(self, user_id: str) -> Optional[Dict[str, Any]]:
+    def get_default_config(self, user_id: int) -> Optional[Dict[str, Any]]:
         """获取默认配置"""
         config = self.config_repo.get_default(user_id)
         if not config:
             return None
-        return self._format_config(config)
+            
+        result = self._format_config(config)
+        
+        # 获取关联的用户LLM配置信息
+        if config.user_llm_config_id:
+            try:
+                llm_config = self.user_llm_config_repo.get_by_id(config.user_llm_config_id, user_id)
+                result["llm_config"] = {
+                    "id": llm_config.id,
+                    "name": llm_config.name,
+                    "provider_type": llm_config.provider_type
+                }
+            except:
+                result["llm_config"] = None
+        else:
+            result["llm_config"] = None
+            
+        return result
     
-    def create_config(self, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    def create_config(self, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """创建新配置"""
         # 验证数据
         self._validate_config_data(config_data)
         
-        # 验证提供商和模型
-        provider_id = config_data.get("provider_id")
-        model_id = config_data.get("model_id")
-        
-        # 确保提供商存在且属于用户
-        provider = self.provider_repo.get_by_id(provider_id, user_id)
-        
-        # 确保模型存在且属于提供商
-        model = self.model_repo.get_by_id(model_id, provider_id)
+        # 验证用户LLM配置
+        if "user_llm_config_id" in config_data and config_data["user_llm_config_id"]:
+            try:
+                self.user_llm_config_repo.get_by_id(config_data["user_llm_config_id"], user_id)
+            except Exception as e:
+                raise ValidationException(f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR)
         
         # 设置用户ID
         config_data["user_id"] = user_id
@@ -72,28 +126,18 @@ class XiaohongshuConfigService:
         config = self.config_repo.create(config_data)
         return self._format_config(config)
     
-    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
+    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
         """更新配置"""
         # 验证数据
         if config_data:
             self._validate_config_data(config_data, is_update=True)
         
-        # 验证提供商和模型
-        provider_id = config_data.get("provider_id")
-        model_id = config_data.get("model_id")
-        
-        if provider_id:
-            # 确保提供商存在且属于用户
-            self.provider_repo.get_by_id(provider_id, user_id)
-        
-        if model_id and provider_id:
-            # 确保模型存在且属于提供商
-            self.model_repo.get_by_id(model_id, provider_id)
-        elif model_id:
-            # 如果只提供了model_id，获取当前配置的provider_id
-            current_config = self.config_repo.get_by_id(config_id, user_id)
-            # 确保模型存在且属于提供商
-            self.model_repo.get_by_id(model_id, current_config.provider_id)
+        # 验证用户LLM配置
+        if "user_llm_config_id" in config_data and config_data["user_llm_config_id"]:
+            try:
+                self.user_llm_config_repo.get_by_id(config_data["user_llm_config_id"], user_id)
+            except Exception as e:
+                raise ValidationException(f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR)
         
         # 禁止更新用户ID
         if "user_id" in config_data:
@@ -103,31 +147,11 @@ class XiaohongshuConfigService:
         config = self.config_repo.update(config_id, user_id, config_data)
         return self._format_config(config)
     
-    def delete_config(self, config_id: int, user_id: str) -> bool:
-        """删除配置"""
-        # 获取配置
-        config = self.config_repo.get_by_id(config_id, user_id)
-        
-        # 如果是默认配置，检查是否有其他配置可设为默认
-        if config.is_default:
-            other_configs = [c for c in self.config_repo.get_all_by_user(user_id) if c.id != config_id]
-            if other_configs:
-                # 将第一个配置设为默认
-                self.config_repo.set_as_default(other_configs[0].id, user_id)
-        
-        # 删除配置
-        return self.config_repo.delete(config_id, user_id)
-    
-    def set_default_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
-        """设置默认配置"""
-        config = self.config_repo.set_as_default(config_id, user_id)
-        return self._format_config(config)
-    
     def _validate_config_data(self, data: Dict[str, Any], is_update: bool = False) -> None:
         """验证配置数据"""
         if not is_update:
             # 必填字段验证
-            required_fields = ["name", "provider_id", "model_id", "user_prompt_template"]
+            required_fields = ["name", "user_prompt_template"]
             missing_fields = [field for field in required_fields if field not in data]
             
             if missing_fields:
@@ -139,31 +163,31 @@ class XiaohongshuConfigService:
         # 温度参数验证
         if "temperature" in data:
             temp = data["temperature"]
-            if not (0 <= temp <= 1):
+            if not isinstance(temp, (int, float)) or temp < 0 or temp > 1:
                 raise ValidationException("temperature必须在0-1之间", PARAMETER_ERROR)
         
         # 令牌数验证
         if "max_tokens" in data:
             tokens = data["max_tokens"]
-            if tokens < 100 or tokens > 4000:
+            if not isinstance(tokens, int) or tokens < 100 or tokens > 4000:
                 raise ValidationException("max_tokens必须在100-4000之间", PARAMETER_ERROR)
         
         # 标题长度验证
         if "title_length" in data:
             length = data["title_length"]
-            if length < 10 or length > 100:
+            if not isinstance(length, int) or length < 10 or length > 100:
                 raise ValidationException("title_length必须在10-100之间", PARAMETER_ERROR)
         
         # 内容长度验证
         if "content_length" in data:
             length = data["content_length"]
-            if length < 100 or length > 2000:
+            if not isinstance(length, int) or length < 100 or length > 2000:
                 raise ValidationException("content_length必须在100-2000之间", PARAMETER_ERROR)
         
         # 标签数量验证
         if "tags_count" in data:
             count = data["tags_count"]
-            if count < 1 or count > 20:
+            if not isinstance(count, int) or count < 1 or count > 20:
                 raise ValidationException("tags_count必须在1-20之间", PARAMETER_ERROR)
     
     def _format_config(self, config) -> Dict[str, Any]:
@@ -172,10 +196,7 @@ class XiaohongshuConfigService:
             "id": config.id,
             "name": config.name,
             "description": config.description,
-            "provider_id": config.provider_id,
-            "provider_name": config.provider.name if hasattr(config, "provider") and config.provider else None,
-            "model_id": config.model_id,
-            "model_name": config.model.name if hasattr(config, "model") and config.model else None,
+            "user_llm_config_id": config.user_llm_config_id,
             "system_prompt": config.system_prompt,
             "user_prompt_template": config.user_prompt_template,
             "temperature": config.temperature,
@@ -191,13 +212,13 @@ class XiaohongshuConfigService:
         }
 
 
-class XiaohongshuGenerationService:
+class XhsCopyGenerationService:
     """小红书文案生成服务"""
     
     def __init__(
         self, 
-        generation_repository: XiaohongshuGenerationRepository,
-        config_repository: XiaohongshuConfigRepository,
+        generation_repository: XhsCopyGenerationRepository,
+        config_repository: XhsCopyConfigRepository,
         provider_repository: LLMProviderRepository,
         model_repository: LLMModelRepository
     ):
@@ -224,15 +245,15 @@ class XiaohongshuGenerationService:
         return self._format_generation(generation)
     
     def create_generation(
-        self, 
-        prompt: str, 
-        image_urls: List[str], 
-        config_id: Optional[int] = None,
-        app_id: Optional[int] = None,
-        user_id: str = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None
-    ) -> Dict[str, Any]:
+    self, 
+    prompt: str, 
+    image_urls: List[str], 
+    config_id: Optional[int] = None,
+    app_id: Optional[int] = None,
+    user_id: int = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None
+) -> Dict[str, Any]:
         """创建并执行文案生成"""
         start_time = time.time()
         
@@ -266,19 +287,51 @@ class XiaohongshuGenerationService:
         generation = self.generation_repo.create(generation_data)
         
         try:
-            # 获取提供商
-            provider = self.provider_repo.get_by_id(config.provider_id, user_id)
+            # 获取用户LLM配置
+            user_llm_config = None
+            if config.user_llm_config_id:
+                try:
+                    user_llm_config = self.user_llm_config_repo.get_by_id(config.user_llm_config_id, user_id)
+                except Exception as e:
+                    raise APIException(f"无法获取LLM配置: {str(e)}", GENERATION_FAILED)
             
-            # 获取模型
-            model = self.model_repo.get_by_id(config.model_id, config.provider_id)
+            if not user_llm_config:
+                raise APIException("未配置LLM服务，请先绑定LLM配置", GENERATION_FAILED)
             
             # 创建AI提供商实例
-            ai_provider = LLMProviderFactory.create_provider(
-                provider.provider_type,
-                provider.api_key,
-                api_base_url=provider.api_base_url,
-                api_version=provider.api_version
-            )
+            ai_provider = None
+            
+            if user_llm_config.provider_type == "OpenAI":
+                if not user_llm_config.api_key:
+                    raise APIException("未配置OpenAI API密钥", GENERATION_FAILED)
+                    
+                ai_provider = LLMProviderFactory.create_provider(
+                    "openai",
+                    user_llm_config.api_key,
+                    api_base_url=user_llm_config.api_base_url,
+                    api_version=user_llm_config.api_version,
+                    timeout=user_llm_config.request_timeout,
+                    max_retries=user_llm_config.max_retries
+                )
+            elif user_llm_config.provider_type == "Claude":
+                if not user_llm_config.api_key:
+                    raise APIException("未配置Claude API密钥", GENERATION_FAILED)
+                    
+                ai_provider = LLMProviderFactory.create_provider(
+                    "anthropic",
+                    user_llm_config.api_key,
+                    api_base_url=user_llm_config.api_base_url,
+                    timeout=user_llm_config.request_timeout,
+                    max_retries=user_llm_config.max_retries
+                )
+            elif user_llm_config.provider_type in ["Volcano", "Tencent", "Baidu", "Aliyun"]:
+                # 这里需要根据不同平台实现对应的初始化
+                raise APIException(f"暂不支持{user_llm_config.provider_type}平台", GENERATION_FAILED)
+            else:
+                raise APIException(f"不支持的LLM提供商类型: {user_llm_config.provider_type}", GENERATION_FAILED)
+            
+            if not ai_provider:
+                raise APIException("初始化LLM提供商失败", GENERATION_FAILED)
             
             # 准备提示词
             system_prompt = config.system_prompt or "你是一位专业的小红书博主，擅长编写吸引人的小红书文案。"
@@ -314,11 +367,17 @@ class XiaohongshuGenerationService:
                 {"role": "user", "content": user_prompt}
             ]
             
+            model_name = "gpt-4" # 默认模型名，实际应从配置获取
+            if user_llm_config.provider_type == "OpenAI":
+                model_name = "gpt-4-turbo" # 或其他从配置中指定的模型
+            elif user_llm_config.provider_type == "Claude":
+                model_name = "claude-3-opus-20240229" # 或其他从配置中指定的模型
+            
             response = ai_provider.generate_chat_completion(
                 messages=messages,
                 max_tokens=config.max_tokens,
                 temperature=config.temperature,
-                model=model.model_id
+                model=model_name
             )
             
             # 解析生成结果
@@ -444,14 +503,14 @@ class XiaohongshuGenerationService:
         }
 
 
-class XiaohongshuTestService:
+class XhsCopyTestService:
     """小红书测试服务"""
     
     def __init__(
         self, 
-        test_repository: XiaohongshuTestRepository,
-        generation_service: XiaohongshuGenerationService,
-        config_repository: XiaohongshuConfigRepository
+        test_repository: XhsCopyTestRepository,
+        generation_service: XhsCopyGenerationService,
+        config_repository: XhsCopyConfigRepository
     ):
         """初始化服务"""
         self.test_repo = test_repository

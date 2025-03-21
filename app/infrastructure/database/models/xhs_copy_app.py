@@ -1,48 +1,15 @@
-# app/infrastructure/database/models/xiaohongshu_app.py
+# app/infrastructure/database/models/xhs_copy_app.py
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime,  JSON, Float
 
 from app.extensions import db
 
-class XiaohongshuAppConfig(db.Model):
-    """小红书文案生成应用配置"""
-    __tablename__ = "xiaohongshu_app_configs"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False, comment="配置名称")
-    description = Column(Text, nullable=True, comment="配置描述")
-    
-    # 模型配置
-    provider_id = Column(Integer, nullable=False, comment="使用的AI提供商ID")
-    model_id = Column(Integer, nullable=False, comment="使用的AI模型ID")
-    
-    # 生成配置
-    system_prompt = Column(Text, nullable=True, comment="系统提示词")
-    user_prompt_template = Column(Text, nullable=False, comment="用户提示词模板")
-    temperature = Column(Float, default=0.7, comment="温度参数")
-    max_tokens = Column(Integer, default=2000, comment="最大生成令牌数")
-    
-    # 内容配置
-    title_length = Column(Integer, default=50, comment="标题最大长度")
-    content_length = Column(Integer, default=1000, comment="内容最大长度")
-    tags_count = Column(Integer, default=5, comment="生成标签数量")
-    include_emojis = Column(Boolean, default=True, comment="是否包含表情符号")
-    
-    # 其他配置
-    is_active = Column(Boolean, default=True, comment="是否启用")
-    is_default = Column(Boolean, default=False, comment="是否为默认配置")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(String(32),  nullable=False, comment="所属用户ID")
-    
-
-    def __repr__(self):
-        return f"<XiaohongshuAppConfig {self.name}>"
 
 
-class XiaohongshuGeneration(db.Model):
+
+class XhsCopyGeneration(db.Model):
     """小红书文案生成记录"""
-    __tablename__ = "xiaohongshu_generations"
+    __tablename__ = "xhs_copy_generations"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     
@@ -76,12 +43,12 @@ class XiaohongshuGeneration(db.Model):
 
 
     def __repr__(self):
-        return f"<XiaohongshuGeneration {self.id}>"
+        return f"<XhsCopyGeneration {self.id}>"
 
 
-class XiaohongshuTestResult(db.Model):
+class XhsCopyTestResult(db.Model):
     """小红书文案测试结果"""
-    __tablename__ = "xiaohongshu_test_results"
+    __tablename__ = "xhs_copy_test_results"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     
@@ -104,4 +71,37 @@ class XiaohongshuTestResult(db.Model):
 
 
     def __repr__(self):
-        return f"<XiaohongshuTestResult {self.test_name}>"
+        return f"<XhsCopyTestResult {self.test_name}>"
+    
+class XhsCopyAppConfig(db.Model):
+    """小红书文案生成应用配置"""
+    __tablename__ = "xhs_copy_app_configs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, comment="配置名称")
+    description = Column(Text, nullable=True, comment="配置描述")
+    
+    # 用户LLM配置关联
+    user_llm_config_id = Column(Integer, nullable=True, comment="用户LLM配置ID")
+    
+    # 生成配置
+    system_prompt = Column(Text, nullable=True, comment="系统提示词")
+    user_prompt_template = Column(Text, nullable=False, comment="用户提示词模板")
+    temperature = Column(Float, default=0.7, comment="温度参数")
+    max_tokens = Column(Integer, default=2000, comment="最大生成令牌数")
+    
+    # 内容配置
+    title_length = Column(Integer, default=50, comment="标题最大长度")
+    content_length = Column(Integer, default=1000, comment="内容最大长度")
+    tags_count = Column(Integer, default=5, comment="生成标签数量")
+    include_emojis = Column(Boolean, default=True, comment="是否包含表情符号")
+    
+    # 其他配置
+    is_active = Column(Boolean, default=True, comment="是否启用")
+    is_default = Column(Boolean, default=False, comment="是否为默认配置")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    user_id = Column(Integer, nullable=False, comment="所属用户ID")
+    
+    def __repr__(self):
+        return f"<XhsCopyAppConfig {self.name}>"

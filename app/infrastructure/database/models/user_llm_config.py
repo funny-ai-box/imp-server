@@ -1,4 +1,3 @@
-# app/infrastructure/database/models/user_llm_config.py
 from datetime import datetime
 from sqlalchemy import (
     Column,
@@ -7,10 +6,7 @@ from sqlalchemy import (
     Text,
     Boolean,
     DateTime,
-    Float,
-    ForeignKey,
 )
-from sqlalchemy.orm import relationship
 
 from app.extensions import db
 

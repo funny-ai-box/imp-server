@@ -10,7 +10,7 @@ class ForbiddenWord(db.Model):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     word = Column(String(255), nullable=False, index=True, comment="违禁词")
-    application = Column(String(50), nullable=False, index=True, comment="应用场景，如xiaohongshu, image_classification等")
+    application = Column(String(50), nullable=False, index=True, comment="应用场景，如xhs_copy")
     description = Column(Text, nullable=True, comment="描述")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
