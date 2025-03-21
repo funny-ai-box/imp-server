@@ -29,24 +29,24 @@ class XiaohongshuConfigService:
         self.provider_repo = provider_repository
         self.model_repo = model_repository
     
-    def get_all_configs(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_configs(self, user_id: str) -> List[Dict[str, Any]]:
         """获取用户所有配置"""
         configs = self.config_repo.get_all_by_user(user_id)
         return [self._format_config(config) for config in configs]
     
-    def get_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def get_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定配置"""
         config = self.config_repo.get_by_id(config_id, user_id)
         return self._format_config(config)
     
-    def get_default_config(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_default_config(self, user_id: str) -> Optional[Dict[str, Any]]:
         """获取默认配置"""
         config = self.config_repo.get_default(user_id)
         if not config:
             return None
         return self._format_config(config)
     
-    def create_config(self, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def create_config(self, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """创建新配置"""
         # 验证数据
         self._validate_config_data(config_data)
@@ -72,7 +72,7 @@ class XiaohongshuConfigService:
         config = self.config_repo.create(config_data)
         return self._format_config(config)
     
-    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """更新配置"""
         # 验证数据
         if config_data:
@@ -103,7 +103,7 @@ class XiaohongshuConfigService:
         config = self.config_repo.update(config_id, user_id, config_data)
         return self._format_config(config)
     
-    def delete_config(self, config_id: int, user_id: int) -> bool:
+    def delete_config(self, config_id: int, user_id: str) -> bool:
         """删除配置"""
         # 获取配置
         config = self.config_repo.get_by_id(config_id, user_id)
@@ -118,7 +118,7 @@ class XiaohongshuConfigService:
         # 删除配置
         return self.config_repo.delete(config_id, user_id)
     
-    def set_default_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def set_default_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """设置默认配置"""
         config = self.config_repo.set_as_default(config_id, user_id)
         return self._format_config(config)
@@ -209,7 +209,7 @@ class XiaohongshuGenerationService:
     
     def get_all_generations(
         self, 
-        user_id: int, 
+        user_id: str, 
         page: int = 1, 
         per_page: int = 20, 
         **filters
@@ -218,7 +218,7 @@ class XiaohongshuGenerationService:
         generations, total = self.generation_repo.get_all_by_user(user_id, page, per_page, **filters)
         return [self._format_generation(gen) for gen in generations], total
     
-    def get_generation(self, generation_id: int, user_id: int) -> Dict[str, Any]:
+    def get_generation(self, generation_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定生成记录"""
         generation = self.generation_repo.get_by_id(generation_id, user_id)
         return self._format_generation(generation)
@@ -229,7 +229,7 @@ class XiaohongshuGenerationService:
         image_urls: List[str], 
         config_id: Optional[int] = None,
         app_id: Optional[int] = None,
-        user_id: int = None,
+        user_id: str = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -394,18 +394,18 @@ class XiaohongshuGenerationService:
             # 重新抛出异常
             raise APIException(f"生成文案失败: {error_message}", GENERATION_FAILED)
     
-    def delete_generation(self, generation_id: int, user_id: int) -> bool:
+    def delete_generation(self, generation_id: int, user_id: str) -> bool:
         """删除生成记录"""
         return self.generation_repo.delete(generation_id, user_id)
     
-    def get_statistics(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+    def get_statistics(self, user_id: str, days: int = 30) -> Dict[str, Any]:
         """获取生成统计数据"""
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
         return self.generation_repo.get_statistics(user_id, start_date, end_date)
     
-    def rate_generation(self, generation_id: int, user_id: int, rating: int, feedback: Optional[str] = None) -> Dict[str, Any]:
+    def rate_generation(self, generation_id: int, user_id: str, rating: int, feedback: Optional[str] = None) -> Dict[str, Any]:
         """对生成结果评分"""
         # 验证评分
         if rating < 1 or rating > 5:
@@ -458,12 +458,12 @@ class XiaohongshuTestService:
         self.generation_service = generation_service
         self.config_repo = config_repository
     
-    def get_all_tests(self, user_id: int, page: int = 1, per_page: int = 20) -> tuple[List[Dict[str, Any]], int]:
+    def get_all_tests(self, user_id: str, page: int = 1, per_page: int = 20) -> tuple[List[Dict[str, Any]], int]:
         """获取用户所有测试结果"""
         tests, total = self.test_repo.get_all_by_user(user_id, page, per_page)
         return [self._format_test(test) for test in tests], total
     
-    def get_test(self, test_id: int, user_id: int) -> Dict[str, Any]:
+    def get_test(self, test_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定测试结果"""
         test = self.test_repo.get_by_id(test_id, user_id)
         return self._format_test(test)
@@ -474,7 +474,7 @@ class XiaohongshuTestService:
         prompt: str, 
         image_urls: List[str], 
         config_ids: List[int], 
-        user_id: int
+        user_id: str
     ) -> Dict[str, Any]:
         """创建并执行配置对比测试"""
         # 验证数据
@@ -543,7 +543,7 @@ class XiaohongshuTestService:
         updated_test = self.test_repo.update(test.id, user_id, update_data)
         return self._format_test(updated_test)
     
-    def select_winner(self, test_id: int, winner_config_id: int, user_id: int) -> Dict[str, Any]:
+    def select_winner(self, test_id: int, winner_config_id: int, user_id: str) -> Dict[str, Any]:
         """选择测试的获胜配置"""
         # 获取测试
         test = self.test_repo.get_by_id(test_id, user_id)
@@ -560,7 +560,7 @@ class XiaohongshuTestService:
         updated_test = self.test_repo.update(test.id, user_id, update_data)
         return self._format_test(updated_test)
     
-    def delete_test(self, test_id: int, user_id: int) -> bool:
+    def delete_test(self, test_id: int, user_id: str) -> bool:
         """删除测试结果"""
         return self.test_repo.delete(test_id, user_id)
     

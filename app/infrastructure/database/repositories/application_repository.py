@@ -17,7 +17,7 @@ class ApplicationRepository:
         """
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int) -> List[Application]:
+    def get_all_by_user(self, user_id: str) -> List[Application]:
         """
         获取用户的所有应用
         
@@ -29,7 +29,7 @@ class ApplicationRepository:
         """
         return self.db.query(Application).filter(Application.user_id == user_id).all()
     
-    def get_by_id(self, app_id: int, user_id: int) -> Application:
+    def get_by_id(self, app_id: int, user_id: str) -> Application:
         """
         根据ID获取指定用户的应用
         
@@ -81,7 +81,7 @@ class ApplicationRepository:
         self.db.refresh(app)
         return app
     
-    def update(self, app_id: int, user_id: int, app_data: dict) -> Application:
+    def update(self, app_id: int, user_id: str, app_data: dict) -> Application:
         """
         更新应用
         
@@ -106,7 +106,7 @@ class ApplicationRepository:
         self.db.refresh(app)
         return app
     
-    def delete(self, app_id: int, user_id: int) -> bool:
+    def delete(self, app_id: int, user_id: str) -> bool:
         """
         删除应用
         

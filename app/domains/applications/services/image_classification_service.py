@@ -33,24 +33,24 @@ class ImageClassificationService:
         self.provider_repo = provider_repository
         self.model_repo = model_repository
     
-    def get_all_configs(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_configs(self, user_id: str) -> List[Dict[str, Any]]:
         """获取用户所有配置"""
         configs = self.config_repo.get_all_by_user(user_id)
         return [self._format_config(config) for config in configs]
     
-    def get_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def get_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定配置"""
         config = self.config_repo.get_by_id(config_id, user_id)
         return self._format_config(config)
     
-    def get_default_config(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def get_default_config(self, user_id: str) -> Optional[Dict[str, Any]]:
         """获取默认配置"""
         config = self.config_repo.get_default(user_id)
         if not config:
             return None
         return self._format_config(config)
     
-    def create_config(self, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def create_config(self, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """创建新配置"""
         # 验证数据
         self._validate_config_data(config_data)
@@ -76,7 +76,7 @@ class ImageClassificationService:
         config = self.config_repo.create(config_data)
         return self._format_config(config)
     
-    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def update_config(self, config_id: int, config_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """更新配置"""
         # 验证数据
         if config_data:
@@ -107,11 +107,11 @@ class ImageClassificationService:
         config = self.config_repo.update(config_id, user_id, config_data)
         return self._format_config(config)
     
-    def delete_config(self, config_id: int, user_id: int) -> bool:
+    def delete_config(self, config_id: int, user_id: str) -> bool:
         """删除配置"""
         return self.config_repo.delete(config_id, user_id)
     
-    def set_default_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def set_default_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """设置默认配置"""
         config = self.config_repo.set_as_default(config_id, user_id)
         return self._format_config(config)
@@ -122,7 +122,7 @@ class ImageClassificationService:
         categories: List[Dict[str, Any]], 
         config_id: Optional[int] = None,
         app_id: Optional[int] = None,
-        user_id: int = None,
+        user_id: str = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -333,7 +333,7 @@ class ImageClassificationService:
     
     def get_all_classifications(
         self, 
-        user_id: int, 
+        user_id: str, 
         page: int = 1, 
         per_page: int = 20, 
         **filters
@@ -342,23 +342,23 @@ class ImageClassificationService:
         classifications, total = self.classification_repo.get_all_by_user(user_id, page, per_page, **filters)
         return [self._format_classification(cls) for cls in classifications], total
     
-    def get_classification(self, classification_id: int, user_id: int) -> Dict[str, Any]:
+    def get_classification(self, classification_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定分类记录"""
         classification = self.classification_repo.get_by_id(classification_id, user_id)
         return self._format_classification(classification)
     
-    def delete_classification(self, classification_id: int, user_id: int) -> bool:
+    def delete_classification(self, classification_id: int, user_id: str) -> bool:
         """删除分类记录"""
         return self.classification_repo.delete(classification_id, user_id)
     
-    def get_statistics(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+    def get_statistics(self, user_id: str, days: int = 30) -> Dict[str, Any]:
         """获取分类统计数据"""
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
         return self.classification_repo.get_statistics(user_id, start_date, end_date)
     
-    def rate_classification(self, classification_id: int, user_id: int, rating: int, feedback: Optional[str] = None) -> Dict[str, Any]:
+    def rate_classification(self, classification_id: int, user_id: str, rating: int, feedback: Optional[str] = None) -> Dict[str, Any]:
         """对分类结果评分"""
         # 验证评分
         if rating < 1 or rating > 5:

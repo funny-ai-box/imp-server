@@ -128,7 +128,7 @@ class LLMProviderRepository:
         """
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int) -> List[LLMProvider]:
+    def get_all_by_user(self, user_id: str) -> List[LLMProvider]:
         """
         获取用户的所有AI提供商
         
@@ -140,7 +140,7 @@ class LLMProviderRepository:
         """
         return self.db.query(LLMProvider).filter(LLMProvider.user_id == user_id).all()
     
-    def get_by_id(self, provider_id: int, user_id: int) -> LLMProvider:
+    def get_by_id(self, provider_id: int, user_id: str) -> LLMProvider:
         """
         根据ID获取指定用户的AI提供商
         
@@ -180,7 +180,7 @@ class LLMProviderRepository:
         self.db.refresh(provider)
         return provider
     
-    def update(self, provider_id: int, user_id: int, provider_data: dict) -> LLMProvider:
+    def update(self, provider_id: int, user_id: str, provider_data: dict) -> LLMProvider:
         """
         更新AI提供商
         
@@ -205,7 +205,7 @@ class LLMProviderRepository:
         self.db.refresh(provider)
         return provider
     
-    def delete(self, provider_id: int, user_id: int) -> bool:
+    def delete(self, provider_id: int, user_id: str) -> bool:
         """
         删除AI提供商
         
@@ -224,7 +224,7 @@ class LLMProviderRepository:
         self.db.commit()
         return True
         
-    def get_by_type(self, provider_type: str, user_id: int) -> List[LLMProvider]:
+    def get_by_type(self, provider_type: str, user_id: str) -> List[LLMProvider]:
         """
         根据类型获取用户的AI提供商
         
@@ -286,7 +286,7 @@ class LLMAuditLogRepository:
             raise NotFoundException(f"未找到ID为{log_id}的审计日志", NOT_FOUND)
         return log
     
-    def get_by_user(self, user_id: int, page: int = 1, per_page: int = 20, **filters) -> Tuple[List[LLMAuditLog], int]:
+    def get_by_user(self, user_id: str, page: int = 1, per_page: int = 20, **filters) -> Tuple[List[LLMAuditLog], int]:
         """
         获取用户的审计日志
         
@@ -364,7 +364,7 @@ class LLMAuditLogRepository:
         
         return logs, total
     
-    def get_user_statistics(self, user_id: int, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
+    def get_user_statistics(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """
         获取用户的统计数据
         

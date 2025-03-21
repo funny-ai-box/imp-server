@@ -15,13 +15,13 @@ class XiaohongshuConfigRepository:
         """初始化存储库"""
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int) -> List[XiaohongshuAppConfig]:
+    def get_all_by_user(self, user_id: str) -> List[XiaohongshuAppConfig]:
         """获取用户的所有配置"""
         return self.db.query(XiaohongshuAppConfig).filter(
             XiaohongshuAppConfig.user_id == user_id
         ).order_by(XiaohongshuAppConfig.created_at.desc()).all()
     
-    def get_by_id(self, config_id: int, user_id: int) -> XiaohongshuAppConfig:
+    def get_by_id(self, config_id: int, user_id: str) -> XiaohongshuAppConfig:
         """根据ID获取配置"""
         config = self.db.query(XiaohongshuAppConfig).filter(
             XiaohongshuAppConfig.id == config_id,
@@ -33,7 +33,7 @@ class XiaohongshuConfigRepository:
         
         return config
     
-    def get_default(self, user_id: int) -> Optional[XiaohongshuAppConfig]:
+    def get_default(self, user_id: str) -> Optional[XiaohongshuAppConfig]:
         """获取用户的默认配置"""
         return self.db.query(XiaohongshuAppConfig).filter(
             XiaohongshuAppConfig.user_id == user_id,
@@ -48,7 +48,7 @@ class XiaohongshuConfigRepository:
         self.db.refresh(config)
         return config
     
-    def update(self, config_id: int, user_id: int, config_data: dict) -> XiaohongshuAppConfig:
+    def update(self, config_id: int, user_id: str, config_data: dict) -> XiaohongshuAppConfig:
         """更新配置"""
         config = self.get_by_id(config_id, user_id)
         
@@ -60,14 +60,14 @@ class XiaohongshuConfigRepository:
         self.db.refresh(config)
         return config
     
-    def delete(self, config_id: int, user_id: int) -> bool:
+    def delete(self, config_id: int, user_id: str) -> bool:
         """删除配置"""
         config = self.get_by_id(config_id, user_id)
         self.db.delete(config)
         self.db.commit()
         return True
     
-    def set_as_default(self, config_id: int, user_id: int) -> XiaohongshuAppConfig:
+    def set_as_default(self, config_id: int, user_id: str) -> XiaohongshuAppConfig:
         """设置配置为默认"""
         # 先将所有配置设为非默认
         self.db.query(XiaohongshuAppConfig).filter(
@@ -89,7 +89,7 @@ class XiaohongshuGenerationRepository:
         """初始化存储库"""
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int, page: int = 1, per_page: int = 20, **filters) -> tuple[List[XiaohongshuGeneration], int]:
+    def get_all_by_user(self, user_id: str, page: int = 1, per_page: int = 20, **filters) -> tuple[List[XiaohongshuGeneration], int]:
         """获取用户的所有生成记录"""
         query = self.db.query(XiaohongshuGeneration).filter(
             XiaohongshuGeneration.user_id == user_id
@@ -119,7 +119,7 @@ class XiaohongshuGenerationRepository:
         
         return generations, total
     
-    def get_by_id(self, generation_id: int, user_id: int) -> XiaohongshuGeneration:
+    def get_by_id(self, generation_id: int, user_id: str) -> XiaohongshuGeneration:
         """根据ID获取生成记录"""
         generation = self.db.query(XiaohongshuGeneration).filter(
             XiaohongshuGeneration.id == generation_id,
@@ -139,7 +139,7 @@ class XiaohongshuGenerationRepository:
         self.db.refresh(generation)
         return generation
     
-    def update(self, generation_id: int, user_id: int, generation_data: dict) -> XiaohongshuGeneration:
+    def update(self, generation_id: int, user_id: str, generation_data: dict) -> XiaohongshuGeneration:
         """更新生成记录"""
         generation = self.get_by_id(generation_id, user_id)
         
@@ -151,14 +151,14 @@ class XiaohongshuGenerationRepository:
         self.db.refresh(generation)
         return generation
     
-    def delete(self, generation_id: int, user_id: int) -> bool:
+    def delete(self, generation_id: int, user_id: str) -> bool:
         """删除生成记录"""
         generation = self.get_by_id(generation_id, user_id)
         self.db.delete(generation)
         self.db.commit()
         return True
     
-    def get_statistics(self, user_id: int, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
+    def get_statistics(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """获取生成统计数据"""
         query = self.db.query(XiaohongshuGeneration).filter(
             XiaohongshuGeneration.user_id == user_id
@@ -211,7 +211,7 @@ class XiaohongshuTestRepository:
         """初始化存储库"""
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int, page: int = 1, per_page: int = 20) -> tuple[List[XiaohongshuTestResult], int]:
+    def get_all_by_user(self, user_id: str, page: int = 1, per_page: int = 20) -> tuple[List[XiaohongshuTestResult], int]:
         """获取用户的所有测试结果"""
         query = self.db.query(XiaohongshuTestResult).filter(
             XiaohongshuTestResult.user_id == user_id
@@ -225,7 +225,7 @@ class XiaohongshuTestRepository:
         
         return tests, total
     
-    def get_by_id(self, test_id: int, user_id: int) -> XiaohongshuTestResult:
+    def get_by_id(self, test_id: int, user_id: str) -> XiaohongshuTestResult:
         """根据ID获取测试结果"""
         test = self.db.query(XiaohongshuTestResult).filter(
             XiaohongshuTestResult.id == test_id,
@@ -245,7 +245,7 @@ class XiaohongshuTestRepository:
         self.db.refresh(test)
         return test
     
-    def update(self, test_id: int, user_id: int, test_data: dict) -> XiaohongshuTestResult:
+    def update(self, test_id: int, user_id: str, test_data: dict) -> XiaohongshuTestResult:
         """更新测试结果"""
         test = self.get_by_id(test_id, user_id)
         
@@ -257,7 +257,7 @@ class XiaohongshuTestRepository:
         self.db.refresh(test)
         return test
     
-    def delete(self, test_id: int, user_id: int) -> bool:
+    def delete(self, test_id: int, user_id: str) -> bool:
         """删除测试结果"""
         test = self.get_by_id(test_id, user_id)
         self.db.delete(test)

@@ -26,7 +26,7 @@ class AuthRepository:
 
     def record_login(
         self,
-        user_id: int,
+        user_id: str,
         login_method: str,
         is_success: bool = True,
         ip_address: Optional[str] = None,

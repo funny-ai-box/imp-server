@@ -18,7 +18,7 @@ class LLMProvider(db.Model):
     is_active = Column(Boolean, default=True, comment="是否启用")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(Integer,  nullable=False, comment="所属用户ID")
+   
 
     def __repr__(self):
         return f"<LLMProvider {self.name} - {self.provider_type}>"
@@ -32,7 +32,7 @@ class LLMAuditLog(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     
     # 关联信息
-    user_id = Column(Integer, nullable=False, comment="用户ID")
+    user_id = Column(String(32), nullable=False, comment="用户ID")
     provider_id = Column(Integer, nullable=False, comment="提供商ID")
     model_id = Column(Integer, nullable=False, comment="模型ID")
     app_id = Column(Integer,  nullable=True, comment="应用ID")

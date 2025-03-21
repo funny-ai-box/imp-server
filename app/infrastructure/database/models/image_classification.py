@@ -28,7 +28,7 @@ class ImageClassificationConfig(db.Model):
     is_default = Column(Boolean, default=False, comment="是否为默认配置")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
-    user_id = Column(Integer, nullable=False, comment="所属用户ID")
+    user_id = Column(String(32), nullable=False, comment="所属用户ID")
     
 
 
@@ -64,7 +64,7 @@ class ImageClassification(db.Model):
     ip_address = Column(String(50), nullable=True, comment="请求IP")
     user_agent = Column(String(255), nullable=True, comment="用户代理")
     created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    user_id = Column(Integer, nullable=False, comment="所属用户ID")
+    user_id = Column(String(32), nullable=False, comment="所属用户ID")
     
     # 评价信息
     user_rating = Column(Integer, nullable=True, comment="用户评分(1-5)")

@@ -4,6 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
+from app.core.security import generate_uuid
 from sqlalchemy import (
     Boolean,
     Column,
@@ -23,7 +24,7 @@ class User(db.Model):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), primary_key=True, default=generate_uuid)
     username = Column(String(50), nullable=False, index=True)
     phone = Column(String(20), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)

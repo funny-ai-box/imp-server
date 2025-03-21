@@ -20,7 +20,7 @@ class LLMProviderService:
         self.provider_repo = provider_repository
         self.user_repo = user_repository
     
-    def get_all_providers(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_providers(self, user_id: str) -> List[Dict[str, Any]]:
         """
         获取用户的所有AI提供商
         
@@ -33,7 +33,7 @@ class LLMProviderService:
         providers = self.provider_repo.get_all_by_user(user_id)
         return [self._format_provider(provider) for provider in providers]
     
-    def get_provider(self, provider_id: int, user_id: int) -> Dict[str, Any]:
+    def get_provider(self, provider_id: int, user_id: str) -> Dict[str, Any]:
         """
         获取特定的AI提供商
         
@@ -47,7 +47,7 @@ class LLMProviderService:
         provider = self.provider_repo.get_by_id(provider_id, user_id)
         return self._format_provider(provider)
     
-    def create_provider(self, provider_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def create_provider(self, provider_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
         创建新的AI提供商
         
@@ -78,7 +78,7 @@ class LLMProviderService:
                 PROVIDER_ALREADY_EXISTS
             )
     
-    def update_provider(self, provider_id: int, provider_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def update_provider(self, provider_id: int, provider_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
         更新AI提供商
         
@@ -102,7 +102,7 @@ class LLMProviderService:
         provider = self.provider_repo.update(provider_id, user_id, provider_data)
         return self._format_provider(provider)
     
-    def delete_provider(self, provider_id: int, user_id: int) -> bool:
+    def delete_provider(self, provider_id: int, user_id: str) -> bool:
         """
         删除AI提供商
         
@@ -210,7 +210,7 @@ class LLMModelService:
         self.model_repo = model_repository
         self.provider_repo = provider_repository
     
-    def get_all_models(self, provider_id: int, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_models(self, provider_id: int, user_id: str) -> List[Dict[str, Any]]:
         """
         获取提供商的所有模型
         
@@ -230,7 +230,7 @@ class LLMModelService:
         models = self.model_repo.get_all_by_provider(provider_id)
         return [self._format_model(model) for model in models]
     
-    def get_model(self, model_id: int, provider_id: int, user_id: int) -> Dict[str, Any]:
+    def get_model(self, model_id: int, provider_id: int, user_id: str) -> Dict[str, Any]:
         """
         获取特定的AI模型
         
@@ -251,7 +251,7 @@ class LLMModelService:
         model = self.model_repo.get_by_id(model_id, provider_id)
         return self._format_model(model)
     
-    def create_model(self, model_data: Dict[str, Any], provider_id: int, user_id: int) -> Dict[str, Any]:
+    def create_model(self, model_data: Dict[str, Any], provider_id: int, user_id: str) -> Dict[str, Any]:
         """
         创建新的AI模型
         
@@ -280,7 +280,7 @@ class LLMModelService:
         model = self.model_repo.create(model_data)
         return self._format_model(model)
     
-    def update_model(self, model_id: int, model_data: Dict[str, Any], provider_id: int, user_id: int) -> Dict[str, Any]:
+    def update_model(self, model_id: int, model_data: Dict[str, Any], provider_id: int, user_id: str) -> Dict[str, Any]:
         """
         更新AI模型
         
@@ -312,7 +312,7 @@ class LLMModelService:
         model = self.model_repo.update(model_id, provider_id, model_data)
         return self._format_model(model)
     
-    def delete_model(self, model_id: int, provider_id: int, user_id: int) -> bool:
+    def delete_model(self, model_id: int, provider_id: int, user_id: str) -> bool:
         """
         删除AI模型
         
@@ -406,7 +406,7 @@ class LLMAuditService:
     
     def log_request(
         self,
-        user_id: int,
+        user_id: str,
         provider_id: int,
         model_id: int,
         request_type: str,
@@ -548,7 +548,7 @@ class LLMAuditService:
     
     def get_user_logs(
         self,
-        user_id: int,
+        user_id: str,
         page: int = 1,
         per_page: int = 20,
         **filters
@@ -570,7 +570,7 @@ class LLMAuditService:
     
     def get_user_statistics(
         self,
-        user_id: int,
+        user_id: str,
         days: int = 30
     ) -> Dict[str, Any]:
         """

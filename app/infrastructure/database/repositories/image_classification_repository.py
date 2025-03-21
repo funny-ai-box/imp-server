@@ -14,13 +14,13 @@ class ImageClassificationConfigRepository:
         """初始化存储库"""
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int) -> List[ImageClassificationConfig]:
+    def get_all_by_user(self, user_id: str) -> List[ImageClassificationConfig]:
         """获取用户的所有配置"""
         return self.db.query(ImageClassificationConfig).filter(
             ImageClassificationConfig.user_id == user_id
         ).order_by(ImageClassificationConfig.created_at.desc()).all()
     
-    def get_by_id(self, config_id: int, user_id: int) -> ImageClassificationConfig:
+    def get_by_id(self, config_id: int, user_id: str) -> ImageClassificationConfig:
         """根据ID获取配置"""
         config = self.db.query(ImageClassificationConfig).filter(
             ImageClassificationConfig.id == config_id,
@@ -32,7 +32,7 @@ class ImageClassificationConfigRepository:
         
         return config
     
-    def get_default(self, user_id: int) -> Optional[ImageClassificationConfig]:
+    def get_default(self, user_id: str) -> Optional[ImageClassificationConfig]:
         """获取用户的默认配置"""
         return self.db.query(ImageClassificationConfig).filter(
             ImageClassificationConfig.user_id == user_id,
@@ -47,7 +47,7 @@ class ImageClassificationConfigRepository:
         self.db.refresh(config)
         return config
     
-    def update(self, config_id: int, user_id: int, config_data: dict) -> ImageClassificationConfig:
+    def update(self, config_id: int, user_id: str, config_data: dict) -> ImageClassificationConfig:
         """更新配置"""
         config = self.get_by_id(config_id, user_id)
         
@@ -59,14 +59,14 @@ class ImageClassificationConfigRepository:
         self.db.refresh(config)
         return config
     
-    def delete(self, config_id: int, user_id: int) -> bool:
+    def delete(self, config_id: int, user_id: str) -> bool:
         """删除配置"""
         config = self.get_by_id(config_id, user_id)
         self.db.delete(config)
         self.db.commit()
         return True
     
-    def set_as_default(self, config_id: int, user_id: int) -> ImageClassificationConfig:
+    def set_as_default(self, config_id: int, user_id: str) -> ImageClassificationConfig:
         """设置配置为默认"""
         # 先将所有配置设为非默认
         self.db.query(ImageClassificationConfig).filter(
@@ -88,7 +88,7 @@ class ImageClassificationRepository:
         """初始化存储库"""
         self.db = db_session
     
-    def get_all_by_user(self, user_id: int, page: int = 1, per_page: int = 20, **filters) -> Tuple[List[ImageClassification], int]:
+    def get_all_by_user(self, user_id: str, page: int = 1, per_page: int = 20, **filters) -> Tuple[List[ImageClassification], int]:
         """获取用户的所有分类记录"""
         query = self.db.query(ImageClassification).filter(
             ImageClassification.user_id == user_id
@@ -118,7 +118,7 @@ class ImageClassificationRepository:
         
         return classifications, total
     
-    def get_by_id(self, classification_id: int, user_id: int) -> ImageClassification:
+    def get_by_id(self, classification_id: int, user_id: str) -> ImageClassification:
         """根据ID获取分类记录"""
         classification = self.db.query(ImageClassification).filter(
             ImageClassification.id == classification_id,
@@ -138,7 +138,7 @@ class ImageClassificationRepository:
         self.db.refresh(classification)
         return classification
     
-    def update(self, classification_id: int, user_id: int, classification_data: dict) -> ImageClassification:
+    def update(self, classification_id: int, user_id: str, classification_data: dict) -> ImageClassification:
         """更新分类记录"""
         classification = self.get_by_id(classification_id, user_id)
         
@@ -150,14 +150,14 @@ class ImageClassificationRepository:
         self.db.refresh(classification)
         return classification
     
-    def delete(self, classification_id: int, user_id: int) -> bool:
+    def delete(self, classification_id: int, user_id: str) -> bool:
         """删除分类记录"""
         classification = self.get_by_id(classification_id, user_id)
         self.db.delete(classification)
         self.db.commit()
         return True
     
-    def get_statistics(self, user_id: int, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
+    def get_statistics(self, user_id: str, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> Dict[str, Any]:
         """获取分类统计数据"""
         query = self.db.query(ImageClassification).filter(
             ImageClassification.user_id == user_id

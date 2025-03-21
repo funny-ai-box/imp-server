@@ -20,7 +20,7 @@ class ApplicationService:
         self.app_repo = application_repository
         self.user_repo = user_repository
     
-    def get_all_applications(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_applications(self, user_id: str) -> List[Dict[str, Any]]:
         """
         获取用户的所有应用
         
@@ -33,7 +33,7 @@ class ApplicationService:
         apps = self.app_repo.get_all_by_user(user_id)
         return [self._format_application(app) for app in apps]
     
-    def get_application(self, app_id: int, user_id: int) -> Dict[str, Any]:
+    def get_application(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """
         获取特定的应用
         
@@ -96,7 +96,7 @@ class ApplicationService:
                 APPLICATION_ALREADY_EXISTS
             )
     
-    def update_application(self, app_id: int, app_data: Dict[str, Any], user_id: int) -> Dict[str, Any]:
+    def update_application(self, app_id: int, app_data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
         """
         更新应用
         
@@ -122,7 +122,7 @@ class ApplicationService:
         app = self.app_repo.update(app_id, user_id, app_data)
         return self._format_application(app)
     
-    def delete_application(self, app_id: int, user_id: int) -> bool:
+    def delete_application(self, app_id: int, user_id: str) -> bool:
         """
         删除应用
         

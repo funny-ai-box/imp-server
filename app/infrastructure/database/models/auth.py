@@ -9,7 +9,7 @@ class LoginHistory(db.Model):
     __tablename__ = "login_history"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, comment="用户ID")
+    user_id = Column(String(32), nullable=False, comment="用户ID")
     login_time = Column(DateTime, default=datetime.utcnow, nullable=False, comment="登录时间")
     ip_address = Column(String(50), nullable=True, comment="IP地址")
     user_agent = Column(String(255), nullable=True, comment="用户代理")

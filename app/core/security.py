@@ -87,7 +87,7 @@ def generate_uuid() -> str:
     Returns:
         UUID字符串
     """
-    return str(uuid.uuid4())
+    return str(uuid.uuid4()).replace('-', '')
 
 def create_signature(data: str, secret: str) -> str:
     """创建数据签名

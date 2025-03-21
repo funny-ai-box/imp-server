@@ -57,7 +57,7 @@ class UserRepository:
             logger.error(f"Failed to update user: {str(e)}")
             raise
 
-    def delete(self, user_id: int) -> bool:
+    def delete(self, user_id: str) -> bool:
         """删除用户
 
         Args:
@@ -84,7 +84,7 @@ class UserRepository:
             logger.error(f"Failed to delete user: {str(e)}")
             raise
 
-    def find_by_id(self, user_id: int) -> Optional[User]:
+    def find_by_id(self, user_id: str) -> Optional[User]:
         """通过ID查找用户
 
         Args:
@@ -222,7 +222,7 @@ class UserRepository:
 
     def log_activity(
         self,
-        user_id: int,
+        user_id: str,
         action: str,
         resource_type: Optional[str] = None,
         resource_id: Optional[str] = None,
@@ -266,7 +266,7 @@ class UserRepository:
             raise
 
     def get_user_activity_logs(
-        self, user_id: int, page: int = 1, per_page: int = 20
+        self, user_id: str, page: int = 1, per_page: int = 20
     ) -> tuple[List[LLMAuditLog], int]:
         """获取用户活动日志
 

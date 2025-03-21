@@ -21,7 +21,7 @@ class UserLLMConfig(db.Model):
     __tablename__ = "user_llm_configs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, comment="所属用户ID")
+    user_id = Column(String(32), nullable=False, comment="所属用户ID")
     provider_type = Column(
         String(50), nullable=False, comment="提供商类型，如OpenAI, Claude, Volcano"
     )

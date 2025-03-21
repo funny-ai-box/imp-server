@@ -14,18 +14,18 @@ class UserLLMConfigService:
         """初始化服务"""
         self.config_repo = config_repository
 
-    def get_all_configs(self, user_id: int) -> List[Dict[str, Any]]:
+    def get_all_configs(self, user_id: str) -> List[Dict[str, Any]]:
         """获取用户所有LLM配置"""
         configs = self.config_repo.get_all_by_user(user_id)
         return [self._format_config(config) for config in configs]
 
-    def get_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def get_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """获取特定LLM配置"""
         config = self.config_repo.get_by_id(config_id, user_id)
         return self._format_config(config)
 
     def get_default_config(
-        self, user_id: int, provider_type: Optional[str] = None
+        self, user_id: str, provider_type: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """获取默认LLM配置"""
         config = self.config_repo.get_default(user_id, provider_type)
@@ -34,7 +34,7 @@ class UserLLMConfigService:
         return self._format_config(config)
 
     def create_config(
-        self, config_data: Dict[str, Any], user_id: int
+        self, config_data: Dict[str, Any], user_id: str
     ) -> Dict[str, Any]:
         """创建新的LLM配置"""
         # 验证数据
@@ -48,7 +48,7 @@ class UserLLMConfigService:
         return self._format_config(config)
 
     def update_config(
-        self, config_id: int, config_data: Dict[str, Any], user_id: int
+        self, config_id: int, config_data: Dict[str, Any], user_id: str
     ) -> Dict[str, Any]:
         """更新LLM配置"""
         # 验证数据
@@ -59,11 +59,11 @@ class UserLLMConfigService:
         config = self.config_repo.update(config_id, user_id, config_data)
         return self._format_config(config)
 
-    def delete_config(self, config_id: int, user_id: int) -> bool:
+    def delete_config(self, config_id: int, user_id: str) -> bool:
         """删除LLM配置"""
         return self.config_repo.delete(config_id, user_id)
 
-    def set_default_config(self, config_id: int, user_id: int) -> Dict[str, Any]:
+    def set_default_config(self, config_id: int, user_id: str) -> Dict[str, Any]:
         """设置默认LLM配置"""
         config = self.config_repo.set_as_default(config_id, user_id)
         return self._format_config(config)

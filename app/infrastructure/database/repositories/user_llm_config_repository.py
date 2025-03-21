@@ -13,13 +13,13 @@ class UserLLMConfigRepository:
         """初始化存储库"""
         self.db = db_session
 
-    def get_all_by_user(self, user_id: int) -> List[UserLLMConfig]:
+    def get_all_by_user(self, user_id: str) -> List[UserLLMConfig]:
         """获取用户的所有LLM配置"""
         return (
             self.db.query(UserLLMConfig).filter(UserLLMConfig.user_id == user_id).all()
         )
 
-    def get_by_id(self, config_id: int, user_id: int) -> UserLLMConfig:
+    def get_by_id(self, config_id: int, user_id: str) -> UserLLMConfig:
         """根据ID获取特定用户的LLM配置"""
         config = (
             self.db.query(UserLLMConfig)
@@ -33,7 +33,7 @@ class UserLLMConfigRepository:
         return config
 
     def get_default(
-        self, user_id: int, provider_type: Optional[str] = None
+        self, user_id: str, provider_type: Optional[str] = None
     ) -> Optional[UserLLMConfig]:
         """获取用户的默认LLM配置"""
         query = self.db.query(UserLLMConfig).filter(
@@ -61,7 +61,7 @@ class UserLLMConfigRepository:
         self.db.refresh(config)
         return config
 
-    def update(self, config_id: int, user_id: int, config_data: dict) -> UserLLMConfig:
+    def update(self, config_id: int, user_id: str, config_data: dict) -> UserLLMConfig:
         """更新配置"""
         config = self.get_by_id(config_id, user_id)
 
@@ -82,7 +82,7 @@ class UserLLMConfigRepository:
         self.db.refresh(config)
         return config
 
-    def delete(self, config_id: int, user_id: int) -> bool:
+    def delete(self, config_id: int, user_id: str) -> bool:
         """删除配置"""
         config = self.get_by_id(config_id, user_id)
 
@@ -106,7 +106,7 @@ class UserLLMConfigRepository:
         self.db.commit()
         return True
 
-    def set_as_default(self, config_id: int, user_id: int) -> UserLLMConfig:
+    def set_as_default(self, config_id: int, user_id: str) -> UserLLMConfig:
         """设置配置为默认"""
         config = self.get_by_id(config_id, user_id)
 
