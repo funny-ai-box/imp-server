@@ -194,43 +194,18 @@ class LLMModelService:
         self.model_repo = model_repository
         self.provider_repo = provider_repository
     
-    def get_all_models(self, provider_id: int, user_id: str) -> List[Dict[str, Any]]:
-        """
-        获取提供商的所有模型
-        
-        参数:
-            provider_id: 提供商ID
-            user_id: 用户ID
-            
-        返回:
-            模型列表
-            
-        异常:
-            NotFoundException: 提供商不存在
-        """
-        # 验证提供商存在且属于该用户
-        self.provider_repo.get_by_id(provider_id, user_id)
+    def get_all_models(self, provider_id: int) -> List[Dict[str, Any]]:
+        """获取提供商的所有模型"""
+        # 验证提供商存在
+        self.provider_repo.get_by_id(provider_id)
         
         models = self.model_repo.get_all_by_provider(provider_id)
         return [self._format_model(model) for model in models]
     
-    def get_model(self, model_id: int, provider_id: int, user_id: str) -> Dict[str, Any]:
-        """
-        获取特定的AI模型
-        
-        参数:
-            model_id: 模型ID
-            provider_id: 提供商ID
-            user_id: 用户ID
-            
-        返回:
-            模型信息
-            
-        异常:
-            NotFoundException: 提供商或模型不存在
-        """
-        # 验证提供商存在且属于该用户
-        self.provider_repo.get_by_id(provider_id, user_id)
+    def get_model(self, model_id: int, provider_id: int) -> Dict[str, Any]:
+        """获取特定的AI模型"""
+        # 验证提供商存在
+        self.provider_repo.get_by_id(provider_id)
         
         model = self.model_repo.get_by_id(model_id, provider_id)
         return self._format_model(model)

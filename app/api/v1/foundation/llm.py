@@ -6,7 +6,7 @@ from app.infrastructure.database.repositories.llm_repository import LLMModelRepo
 
 from app.api.middleware.auth import auth_required
 
-ai_models_bp = Blueprint("ai_models", __name__)
+llm_models_bp = Blueprint("llm_models", __name__)
 
 
 
@@ -20,12 +20,10 @@ llm_providers_bp = Blueprint("llm_providers", __name__)
 @auth_required
 def list_providers():
     """获取大模型平台列表"""
-
     # 初始化存储库和服务
     db_session = g.db_session
     provider_repo = LLMProviderRepository(db_session)
-    user_repo = UserRepository(db_session)
-    provider_service = LLMProviderService(provider_repo, user_repo)
+    provider_service = LLMProviderService(provider_repo)
     
     # 获取提供商列表
     providers = provider_service.get_all_providers()
@@ -168,7 +166,7 @@ def list_provider_types():
     
     return success_response(provider_types, "获取支持的大模型平台类型列表成功")
 
-@ai_models_bp.route("/list_models", methods=["POST"])
+@llm_models_bp.route("/list_models", methods=["POST"])
 @auth_required
 def list_models():
     """获取模型列表"""
@@ -178,7 +176,6 @@ def list_models():
         raise ValidationException("缺少必填参数: provider_id")
     
     provider_id = data["provider_id"]
-    user_id = g.user_id
     
     # 初始化存储库和服务
     db_session = g.db_session
@@ -187,12 +184,12 @@ def list_models():
     model_service = LLMModelService(model_repo, provider_repo)
     
     # 获取模型列表
-    models = model_service.get_all_models(provider_id, user_id)
+    models = model_service.get_all_models(provider_id)
     
     return success_response(models, "获取模型列表成功")
 
 
-@ai_models_bp.route("/get_model", methods=["POST"])
+@llm_models_bp.route("/get_model", methods=["POST"])
 @auth_required
 def get_model():
     """获取特定模型信息"""
@@ -217,7 +214,7 @@ def get_model():
     return success_response(model, "获取模型信息成功")
 
 
-@ai_models_bp.route("/create_model", methods=["POST"])
+@llm_models_bp.route("/create_model", methods=["POST"])
 @auth_required
 def create_model():
     """创建新的模型"""
@@ -241,7 +238,7 @@ def create_model():
     return success_response(model, "创建模型成功")
 
 
-@ai_models_bp.route("/update_model", methods=["POST"])
+@llm_models_bp.route("/update_model", methods=["POST"])
 @auth_required
 def update_model():
     """更新模型信息"""
@@ -266,7 +263,7 @@ def update_model():
     return success_response(model, "更新模型信息成功")
 
 
-@ai_models_bp.route("/delete_model", methods=["POST"])
+@llm_models_bp.route("/delete_model", methods=["POST"])
 @auth_required
 def delete_model():
     """删除模型"""

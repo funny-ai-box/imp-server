@@ -82,6 +82,7 @@ def auth_required(f):
             g.db_session = db_session
             
             print("===== JWT认证成功 =====")
+            # 调用被装饰的函数
             return f(*args, **kwargs)
         except jwt.ExpiredSignatureError as e:
             print(f"错误: 令牌已过期 - {str(e)}")
@@ -89,11 +90,13 @@ def auth_required(f):
         except jwt.InvalidTokenError as e:
             print(f"错误: 无效的令牌 - {str(e)}")
             raise AuthenticationException("无效的令牌")
+        except AuthenticationException:
+            # 直接重新抛出认证异常
+            raise
         except Exception as e:
-            print(f"错误: 认证过程中发生异常 - 类型: {type(e).__name__}, 信息: {str(e)}")
-            if isinstance(e, AuthenticationException):
-                raise
-            raise AuthenticationException(f"认证失败: {str(e)}")
+            # 记录未知异常，但不做处理，让它继续传播
+            print(f"认证过程中发生非认证异常 - 类型: {type(e).__name__}, 信息: {str(e)}")
+            raise  # 让异常继续传播，保持原始异常类型
     return decorated_function
 
 def admin_required(f):

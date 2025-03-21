@@ -380,8 +380,8 @@ class XhsCopyGenerationService:
         """获取LLM服务提供商"""
         # 验证用户LLM配置
         if not config.user_llm_config_id:
-            raise APIException("未配置LLM服务，请先绑定LLM配置", GENERATION_FAILED)
-            
+            raise APIException("未配置LLM服务，请先为此配置绑定LLM配置", GENERATION_FAILED)
+        
         if not self.user_llm_config_repo:
             raise APIException("系统未配置LLM服务接口", GENERATION_FAILED)
         
@@ -395,27 +395,27 @@ class XhsCopyGenerationService:
         
         if user_llm_config.provider_type == "OpenAI":
             if not user_llm_config.api_key:
-                raise APIException("未配置OpenAI API密钥", GENERATION_FAILED)
+                raise APIException("您尚未配置OpenAI API密钥，请先在LLM配置中设置API密钥", GENERATION_FAILED)
                 
-            ai_provider = LLMProviderFactory.create_provider(
-                "openai",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                api_version=user_llm_config.api_version,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries
-            )
-        elif user_llm_config.provider_type == "Claude":
-            if not user_llm_config.api_key:
-                raise APIException("未配置Claude API密钥", GENERATION_FAILED)
-                
-            ai_provider = LLMProviderFactory.create_provider(
-                "anthropic",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries
-            )
+                ai_provider = LLMProviderFactory.create_provider(
+                    "openai",
+                    user_llm_config.api_key,
+                    api_base_url=user_llm_config.api_base_url,
+                    api_version=user_llm_config.api_version,
+                    timeout=user_llm_config.request_timeout,
+                    max_retries=user_llm_config.max_retries
+                )
+            elif user_llm_config.provider_type == "Claude":
+                if not user_llm_config.api_key:
+                    raise APIException("您尚未配置Claude API密钥，请先在LLM配置中设置API密钥", GENERATION_FAILED)
+                    
+                ai_provider = LLMProviderFactory.create_provider(
+                    "anthropic",
+                    user_llm_config.api_key,
+                    api_base_url=user_llm_config.api_base_url,
+                    timeout=user_llm_config.request_timeout,
+                    max_retries=user_llm_config.max_retries
+                )
         elif user_llm_config.provider_type in ["Volcano", "Tencent", "Baidu", "Aliyun"]:
             # 这里需要根据不同平台实现对应的初始化
             raise APIException(f"暂不支持{user_llm_config.provider_type}平台", GENERATION_FAILED)

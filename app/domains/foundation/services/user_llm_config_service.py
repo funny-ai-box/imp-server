@@ -188,7 +188,7 @@ class UserLLMConfigService:
 
             if missing_fields:
                 raise ValidationException(
-                    f"缺少必填字段: {', '.join(missing_fields)}", PARAMETER_ERROR
+                    f"缺少必填字段: {', '.join(missing_fields)}"
                 )
 
         # 提供商类型验证
@@ -205,7 +205,7 @@ class UserLLMConfigService:
             if data["provider_type"] not in valid_types:
                 raise ValidationException(
                     f"无效的提供商类型: {data['provider_type']}，有效类型: {', '.join(valid_types)}",
-                    PARAMETER_ERROR,
+                
                 )
 
             # 根据提供商类型验证必要的鉴权字段
@@ -213,19 +213,19 @@ class UserLLMConfigService:
             if not is_update and provider_type in ["OpenAI", "Claude", "Gemini"]:
                 if "api_key" not in data or not data["api_key"]:
                     raise ValidationException(
-                        f"{provider_type}配置必须提供api_key", PARAMETER_ERROR
+                        f"{provider_type}配置必须提供api_key"
                     )
             elif not is_update and provider_type in ["Baidu", "Aliyun"]:
                 if "app_key" not in data or not data["app_key"] or "app_secret" not in data or not data["app_secret"]:
                     raise ValidationException(
-                        f"{provider_type}配置必须提供app_key和app_secret", PARAMETER_ERROR
+                        f"{provider_type}配置必须提供app_key和app_secret"
                     )
             elif not is_update and provider_type in ["Volcano", "Tencent"]:
                 if ("app_id" not in data or not data["app_id"] or
                     "app_key" not in data or not data["app_key"] or
                     "app_secret" not in data or not data["app_secret"]):
                     raise ValidationException(
-                        f"{provider_type}配置必须提供app_id、app_key和app_secret", PARAMETER_ERROR
+                        f"{provider_type}配置必须提供app_id、app_key和app_secret"
                     )
 
         # 超时时间验证
@@ -233,11 +233,11 @@ class UserLLMConfigService:
             timeout = data["request_timeout"]
             if not isinstance(timeout, int) or timeout < 1 or timeout > 300:
                 raise ValidationException(
-                    "请求超时时间必须在1-300秒之间", PARAMETER_ERROR
+                    "请求超时时间必须在1-300秒之间"
                 )
 
         # 重试次数验证
         if "max_retries" in data:
             retries = data["max_retries"]
             if not isinstance(retries, int) or retries < 0 or retries > 10:
-                raise ValidationException("最大重试次数必须在0-10之间", PARAMETER_ERROR)
+                raise ValidationException("最大重试次数必须在0-10之间")
