@@ -13,8 +13,7 @@ from app.api.v1.foundation.llm import llm_providers_bp, llm_models_bp
 from app.api.v1.foundation.user_llm_config import user_llm_config_bp
 
 # 导入应用相关蓝图
-from app.api.v1.applications.xhs_copy.xhs_copy import xhs_copy_bp
-from app.api.v1.applications.xhs_copy.xhs_copy_config import xhs_copy_config_bp
+from app.api.v1.applications.xhs_copy import xhs_copy_bp
 
 # 导入外部接口相关蓝图
 from app.api.v1.external.foundation.forbidden_words import external_forbidden_words_bp
@@ -37,7 +36,6 @@ applications_bp = Blueprint("applications", __name__, url_prefix="/applications"
 # 注册小红书应用蓝图
 xhs_bp = Blueprint("xhs", __name__, url_prefix="/xhs_copy")
 xhs_bp.register_blueprint(xhs_copy_bp)
-xhs_bp.register_blueprint(xhs_copy_config_bp, url_prefix="/configs")
 applications_bp.register_blueprint(xhs_bp)
 
 # 注册应用蓝图到主蓝图
@@ -47,13 +45,19 @@ api_v1_bp.register_blueprint(applications_bp)
 external_bp = Blueprint("external", __name__, url_prefix="/external")
 
 # 外部接口的基础能力蓝图
-external_foundation_bp = Blueprint("external_foundation", __name__, url_prefix="/foundation")
+external_foundation_bp = Blueprint(
+    "external_foundation", __name__, url_prefix="/foundation"
+)
 external_foundation_bp.register_blueprint(external_forbidden_words_bp)
 external_bp.register_blueprint(external_foundation_bp)
 
 # 外部接口的应用蓝图
-external_applications_bp = Blueprint("external_applications", __name__, url_prefix="/applications")
-external_applications_bp.register_blueprint(external_xhs_copy_bp, url_prefix="/xhs_copy")
+external_applications_bp = Blueprint(
+    "external_applications", __name__, url_prefix="/applications"
+)
+external_applications_bp.register_blueprint(
+    external_xhs_copy_bp, url_prefix="/xhs_copy"
+)
 external_bp.register_blueprint(external_applications_bp)
 
 # 注册外部接口蓝图到主蓝图

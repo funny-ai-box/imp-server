@@ -2,7 +2,7 @@
 from flask import Blueprint
 from app.api.v1.applications.user_app import user_app_bp
 from app.api.v1.applications.app_store import app_store_bp
-from app.api.v1.applications.xhs_copy.xhs_copy import xhs_copy_bp
+from app.api.v1.applications.xhs_copy import xhs_copy_bp
 
 ai_apps_bp = Blueprint("applications", __name__, url_prefix="/applications")
 
