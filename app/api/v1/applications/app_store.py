@@ -1,87 +1,103 @@
-# app/api/v1/applications/app_store.py
-from app.core.exceptions import ValidationException
+# app/api/v1/applications/app_store.py (修改)
 from flask import Blueprint, request, g
 from app.core.responses import success_response
+from app.core.exceptions import ValidationException
+from app.domains.applications.services.app_store_service import AppStoreService
+from app.domains.applications.services.user_app_service import UserAppService
+from app.infrastructure.database.repositories.app_template_repository import (
+    AppTemplateRepository,
+)
+from app.infrastructure.database.repositories.user_app_repository import (
+    UserAppRepository,
+)
+from app.infrastructure.database.repositories.user_llm_config_repository import (
+    UserLLMConfigRepository,
+)
 from app.api.middleware.auth import auth_required
 
 app_store_bp = Blueprint("app_store", __name__, url_prefix="/store")
+
 
 @app_store_bp.route("/list", methods=["GET"])
 @auth_required
 def list_available_apps():
     """获取应用商店中可用的应用列表"""
-    # 这里返回静态的应用列表信息
-    available_apps = [
-        {
-            "app_type": "xhs_copy",
-            "name": "小红书文案生成",
-            "description": "快速生成符合小红书风格的内容文案和标签",
-            "icon": "/static/icons/xhs_copy.png",
-            "capabilities": ["文案生成", "标题生成", "标签生成"],
-            "config_template": {
-                "system_prompt": "你是一位专业的小红书博主，擅长编写吸引人的小红书文案。",
-                "user_prompt_template": "请根据以下内容，创作一篇吸引人的小红书文案：\n{prompt}",
-                "temperature": 0.7,
-                "max_tokens": 2000,
-                "title_length": 50,
-                "content_length": 1000,
-                "tags_count": 5,
-                "include_emojis": True
-            }
-        },
-  
-    ]
-    
-    return success_response(available_apps, "获取可用应用列表成功")
+    # 初始化存储库和服务
+    db_session = g.db_session
+    template_repo = AppTemplateRepository(db_session)
+    app_store_service = AppStoreService(template_repo)
+
+    # 获取应用模板列表
+    templates = app_store_service.get_all_templates()
+
+    return success_response(templates, "获取可用应用列表成功")
+
 
 @app_store_bp.route("/get", methods=["POST"])
 @auth_required
 def get_app_details():
-    """获取特定应用类型的详细信息"""
+    """获取特定应用的详细信息"""
     # 验证请求数据
     data = request.get_json()
-    if not data or "app_type" not in data:
-        raise ValidationException("缺少必填参数: app_type")
-    
-    app_type = data["app_type"]
-    
-    # 应用详情映射
-    app_details = {
-        "xhs_copy": {
-            "app_type": "xhs_copy",
-            "name": "小红书文案生成",
-            "description": "快速生成符合小红书风格的内容文案和标签",
-            "icon": "/static/icons/xhs_copy.png",
-            "capabilities": ["文案生成", "标题生成", "标签生成"],
-            "config_template": {
-                "system_prompt": "你是一位专业的小红书博主，擅长编写吸引人的小红书文案。",
-                "user_prompt_template": "请根据以下内容，创作一篇吸引人的小红书文案：\n{prompt}",
-                "temperature": 0.7,
-                "max_tokens": 2000,
-                "title_length": 50,
-                "content_length": 1000,
-                "tags_count": 5,
-                "include_emojis": True
-            },
-            "supported_models": {
-                "OpenAI": ["gpt-4-turbo", "gpt-4", "gpt-3.5-turbo"],
-                "Claude": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-                "Gemini": ["gemini-pro"],
-                "Baidu": ["ernie-bot-4", "ernie-bot"],
-                "Aliyun": ["qwen-max", "qwen-plus"],
-                "Tencent": ["hunyuan"]
-            },
-            "instructions": "配置完成后，使用生成的App Key在您的应用中调用API接口即可生成小红书文案。请确保您已经配置了有效的LLM服务。",
-            "example_prompts": [
-                "分享一个复古风穿搭，搭配了牛仔外套和长裙。",
-                "介绍我新买的咖啡机，说说它的特点和使用体验。",
-                "分享一个周末旅行的经历，去了附近的一个小镇。"
-            ]
-        },
+    if not data:
+        raise ValidationException("请求数据不能为空")
 
-    }
-    
-    if app_type not in app_details:
-        return success_response(None, "未找到指定应用类型的详情")
-    
-    return success_response(app_details[app_type], "获取应用详情成功")
+    app_id = data.get("app_id")
+    app_type = data.get("app_type")
+    template_id = data.get("template_id")
+
+    if not app_id and not app_type and not template_id:
+        raise ValidationException("请提供app_id、app_type或template_id")
+
+    # 初始化存储库和服务
+    db_session = g.db_session
+    template_repo = AppTemplateRepository(db_session)
+    app_store_service = AppStoreService(template_repo)
+
+    # 获取应用详情
+    if app_id:
+        template = app_store_service.get_template_by_app_id(app_id)
+    elif template_id:
+        template = app_store_service.get_template_by_id(template_id)
+    else:
+        template = app_store_service.get_template_by_type(app_type)
+
+    return success_response(template, "获取应用详情成功")
+
+
+@app_store_bp.route("/instantiate", methods=["POST"])
+@auth_required
+def instantiate_app():
+    """从模板实例化应用"""
+    # 验证请求数据
+    data = request.get_json()
+    if not data or "template_id" not in data:
+        raise ValidationException("缺少必填参数: template_id")
+
+    template_id = data["template_id"]
+    custom_config = data.get("config")
+    custom_name = data.get("name")
+    user_id = g.user_id
+
+    # 初始化存储库和服务
+    db_session = g.db_session
+    template_repo = AppTemplateRepository(db_session)
+    user_app_repo = UserAppRepository(db_session)
+    user_llm_config_repo = UserLLMConfigRepository(db_session)
+
+    user_app_service = UserAppService(
+        user_app_repo, template_repo, user_llm_config_repo
+    )
+
+    # 实例化应用
+    app = user_app_service.instantiate_from_template(
+        template_id=template_id, user_id=user_id, custom_config=custom_config
+    )
+
+    # 如果提供了自定义名称，更新应用名称
+    if custom_name:
+        app = user_app_service.update_app(
+            app_id=app["id"], app_data={"name": custom_name}, user_id=user_id
+        )
+
+    return success_response(app, "应用实例化成功")

@@ -7,6 +7,9 @@ import json
 
 from app.core.exceptions import ValidationException, NotFoundException
 from app.core.status_codes import PARAMETER_ERROR, APPLICATION_NOT_FOUND
+from app.infrastructure.database.repositories.app_template_repository import (
+    AppTemplateRepository,
+)
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
@@ -23,11 +26,60 @@ class UserAppService:
     def __init__(
         self,
         user_app_repository: UserAppRepository,
+        app_template_repository: Optional[AppTemplateRepository] = None,
         user_llm_config_repository: Optional[UserLLMConfigRepository] = None,
     ):
         """初始化服务"""
         self.user_app_repo = user_app_repository
+        self.app_template_repo = app_template_repository
         self.user_llm_config_repo = user_llm_config_repository
+
+    def instantiate_from_template(
+        self, template_id: int, user_id: str, custom_config: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """从应用模板实例化用户应用
+
+        Args:
+            template_id: 应用模板ID
+            user_id: 用户ID
+            custom_config: 用户自定义配置（可选）
+
+        Returns:
+            创建的应用实例
+        """
+        if not self.app_template_repo:
+            raise ValidationException(
+                "不支持从模板实例化，缺少应用模板存储库", PARAMETER_ERROR
+            )
+
+        # 获取应用模板
+        template = self.app_template_repo.get_by_id(template_id)
+
+        # 创建应用数据
+        app_data = {
+            "user_id": user_id,
+            "app_type": template.app_type,
+            "name": template.name,
+            "description": template.description,
+            "template_id": template.id,
+            "app_key": self._generate_app_key(),
+            "created_at": datetime.utcnow(),
+        }
+
+        # 合并默认配置和自定义配置
+        config = template.config_template.copy() if template.config_template else {}
+        if custom_config:
+            config.update(custom_config)
+        app_data["config"] = config
+
+        # 检查是否是第一个同类型应用，如果是，设为默认
+        existing_apps = self.user_app_repo.get_all_by_type(user_id, template.app_type)
+        if not existing_apps:
+            app_data["is_default"] = True
+
+        # 创建应用
+        app = self.user_app_repo.create(app_data)
+        return self._format_app(app)
 
     def get_all_apps(self, user_id: str) -> List[Dict[str, Any]]:
         """获取用户所有应用"""
