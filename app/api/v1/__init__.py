@@ -17,6 +17,8 @@ from app.api.v1.applications.xhs_copy import xhs_copy_bp
 from app.api.v1.applications.user_app import user_app_bp
 from app.api.v1.applications.app_store import app_store_bp
 
+from app.api.v1.applications.image_classify import image_classify_bp
+
 
 # 导入外部接口相关蓝图
 from app.api.v1.external.foundation.forbidden_words import external_forbidden_words_bp
@@ -44,6 +46,8 @@ applications_bp.register_blueprint(xhs_copy_bp, url_prefix="/xhs_copy")
 applications_bp.register_blueprint(user_app_bp, url_prefix="/user_app")
 applications_bp.register_blueprint(app_store_bp, url_prefix="/store")
 
+
+
 # 注册应用蓝图到主蓝图
 api_v1_bp.register_blueprint(applications_bp)
 
@@ -63,6 +67,9 @@ external_applications_bp = Blueprint(
 )
 external_applications_bp.register_blueprint(
     external_xhs_copy_bp, url_prefix="/xhs_copy"
+)
+external_applications_bp.register_blueprint(
+    image_classify_bp, url_prefix="/image_classify"
 )
 external_bp.register_blueprint(external_applications_bp)
 
