@@ -1,4 +1,5 @@
 # app/api/v1/applications/user_app.py
+from app.infrastructure.database.repositories.app_template_repository import AppTemplateRepository
 from flask import Blueprint, request, g
 from app.core.responses import success_response
 from app.core.exceptions import ValidationException
@@ -114,8 +115,9 @@ def publish_user_app():
     # 初始化存储库和服务
     db_session = g.db_session
     user_app_repo = UserAppRepository(db_session)
+    app_template_repo = AppTemplateRepository(db_session)
     user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+    user_app_service = UserAppService(user_app_repo,app_template_repo, user_llm_config_repo)
     
     # 发布应用
     app = user_app_service.publish_app(app_id, user_id)

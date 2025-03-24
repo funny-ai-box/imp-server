@@ -50,52 +50,64 @@ def _validate_and_extract_params(request):
 def _create_llm_provider(user_llm_config):
     """创建LLM提供商实例"""
     provider_type = user_llm_config.provider_type
+    
+    try:
+        if provider_type == "OpenAI":
+            # 检查API密钥是否有效
+            if not user_llm_config.api_key:
+                raise APIException("您尚未配置OpenAI API密钥", GENERATION_FAILED)
+                
+            # 记录连接尝试（用于调试）
+            print(f"正在尝试连接到OpenAI，基础URL为: {user_llm_config.api_base_url}")
+            
+            return LLMProviderFactory.create_provider(
+                "openai",
+                user_llm_config.api_key,
+                api_base_url=user_llm_config.api_base_url,
+                api_version=user_llm_config.api_version,
+                timeout=user_llm_config.request_timeout,
+                max_retries=user_llm_config.max_retries,
+            )
+        elif provider_type == "Claude":
+            if not user_llm_config.api_key:
+                raise APIException("您尚未配置Claude API密钥", GENERATION_FAILED)
+            
+            print(f"正在尝试连接到Claude，基础URL为: {user_llm_config.api_base_url}")
+            
+            return LLMProviderFactory.create_provider(
+                "anthropic",
+                user_llm_config.api_key,
+                api_base_url=user_llm_config.api_base_url,
+                timeout=user_llm_config.request_timeout,
+                max_retries=user_llm_config.max_retries,
+            )
+        elif provider_type == "Volcano":
+            if not user_llm_config.api_key:
+                raise APIException("您尚未配置火山引擎API密钥", GENERATION_FAILED)
+            
+            print(f"正在尝试连接到火山引擎")
+            
+            # 火山引擎可能需要额外的配置项
+            config = {
+                "timeout": user_llm_config.request_timeout,
+                "max_retries": user_llm_config.max_retries,
+            }
 
-    if provider_type == "OpenAI":
-        if not user_llm_config.api_key:
-            raise APIException("您尚未配置OpenAI API密钥", GENERATION_FAILED)
+            # 添加应用ID和密钥（如果有）
+            if user_llm_config.app_id:
+                config["app_id"] = user_llm_config.app_id
+            if user_llm_config.app_secret:
+                config["app_secret"] = user_llm_config.app_secret
 
-        return LLMProviderFactory.create_provider(
-            "openai",
-            user_llm_config.api_key,
-            api_base_url=user_llm_config.api_base_url,
-            api_version=user_llm_config.api_version,
-            timeout=user_llm_config.request_timeout,
-            max_retries=user_llm_config.max_retries,
-        )
-    elif provider_type == "Claude":
-        if not user_llm_config.api_key:
-            raise APIException("您尚未配置Claude API密钥", GENERATION_FAILED)
-
-        return LLMProviderFactory.create_provider(
-            "anthropic",
-            user_llm_config.api_key,
-            api_base_url=user_llm_config.api_base_url,
-            timeout=user_llm_config.request_timeout,
-            max_retries=user_llm_config.max_retries,
-        )
-    elif provider_type == "Volcano":
-        if not user_llm_config.api_key:
-            raise APIException("您尚未配置火山引擎API密钥", GENERATION_FAILED)
-
-        # 火山引擎可能需要额外的配置项
-        config = {
-            "timeout": user_llm_config.request_timeout,
-            "max_retries": user_llm_config.max_retries,
-        }
-
-        # 添加应用ID和密钥（如果有）
-        if user_llm_config.app_id:
-            config["app_id"] = user_llm_config.app_id
-        if user_llm_config.app_secret:
-            config["app_secret"] = user_llm_config.app_secret
-
-        return LLMProviderFactory.create_provider(
-            "volcano", user_llm_config.api_key, **config
-        )
-    else:
-        raise APIException(f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED)
-
+            return LLMProviderFactory.create_provider(
+                "volcano", user_llm_config.api_key, **config
+            )
+        else:
+            raise APIException(f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED)
+    except Exception as e:
+        print(f"创建LLM提供商失败: {str(e)}")
+        print(f"详细错误: {traceback.format_exc()}")
+        raise APIException(f"创建LLM提供商失败: {str(e)}", GENERATION_FAILED)
 
 def _get_model_name(provider_type):
     """根据提供商类型获取默认模型名称"""
@@ -381,7 +393,7 @@ def external_generate():
             # 重新抛出异常
             if isinstance(e, APIException):
                 raise
-            raise APIException(f"生成文案失败: {str(e)}", GENERATION_FAILED)
+            raise APIException(f"生成文案2失败: {str(e)}", GENERATION_FAILED)
 
     except ValidationException as e:
         # 参数验证失败
@@ -396,7 +408,7 @@ def external_generate():
         logger.error(
             f"Unexpected error in external generate: {str(e)}\n{traceback.format_exc()}"
         )
-        raise APIException(f"生成文案失败: {str(e)}", GENERATION_FAILED)
+        raise APIException(f"生成文案1失败: {str(e)}", GENERATION_FAILED)
 
 
 @external_xhs_copy_bp.route("/rate", methods=["POST"])

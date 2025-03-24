@@ -57,7 +57,7 @@ class AppTemplateRepository:
 
         if not template:
             raise NotFoundException(
-                f"未找到ID为{template_id}的应用模板", APPLICATION_NOT_FOUND
+                f"未找到ID为{template_id}的应用模板"
             )
 
         return template

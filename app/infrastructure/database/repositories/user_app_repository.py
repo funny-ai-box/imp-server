@@ -27,7 +27,22 @@ class UserAppRepository:
         )
 
         if not app:
-            raise NotFoundException(f"未找到ID为{app_id}的应用", APPLICATION_NOT_FOUND)
+            raise NotFoundException(f"未找到ID为{app_id}的应用")
+
+        return app
+    
+    def get_by_app_id(self, app_id: int, user_id: str) -> UserApp:
+        """根据应用ID获取应用"""
+        print("get_by_app_id")
+        print(f"app_id: {app_id}, user_id: {user_id}")
+        app= (
+            self.db.query(UserApp)
+            .filter(UserApp.app_id == app_id, UserApp.user_id == user_id)
+            .first()
+        )
+
+        if not app:
+            raise NotFoundException(f"未找到A1PP_ID为{app_id}的应用")
 
         return app
 
@@ -65,7 +80,7 @@ class UserAppRepository:
 
     def update(self, app_id: int, user_id: str, app_data: dict) -> UserApp:
         """更新应用"""
-        app = self.get_by_id(app_id, user_id)
+        app = self.get_by_app_id(app_id, user_id)
 
         for key, value in app_data.items():
             if hasattr(app, key):

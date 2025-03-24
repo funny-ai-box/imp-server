@@ -58,6 +58,7 @@ class UserAppService:
         # 创建应用数据
         app_data = {
             "user_id": user_id,
+            "app_id": template.app_id,
             "app_type": template.app_type,
             "name": template.name,
             "description": template.description,
@@ -207,14 +208,15 @@ class UserAppService:
     def publish_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
         """发布应用配置"""
         # 获取当前应用
-        app = self.user_app_repo.get_by_id(app_id, user_id)
+        app = self.user_app_repo.get_by_app_id(app_id, user_id)
 
         # 验证应用配置中包含必要的大模型设置
         if not app.config:
-            raise ValidationException("应用配置不能为空", PARAMETER_ERROR)
+            raise ValidationException("应用配置不能为空")
 
         # 如果有关联的LLM配置，验证该配置是否有效
         user_llm_config_id = app.user_llm_config_id
+        print("user_llm_config_id", user_llm_config_id)
         if user_llm_config_id and self.user_llm_config_repo:
             try:
                 user_llm_config = self.user_llm_config_repo.get_by_id(
@@ -222,14 +224,14 @@ class UserAppService:
                 )
                 if not user_llm_config.is_active:
                     raise ValidationException(
-                        "关联的LLM配置未激活，无法发布", PARAMETER_ERROR
+                        "关联的LLM配置未激活，无法发布"
                     )
             except NotFoundException:
                 raise ValidationException(
-                    "关联的LLM配置不存在，无法发布", PARAMETER_ERROR
+                    "关联的LLM配置不存在，无法发布"
                 )
         else:
-            raise ValidationException("未关联LLM配置，无法发布", PARAMETER_ERROR)
+            raise ValidationException("未关联LLM配置，无法发布")
 
         # 根据应用类型验证必要配置
         self._validate_app_config_by_type(app.app_type, app.config)

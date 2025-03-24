@@ -46,7 +46,7 @@ def generate_content():
             raise ValidationException("提示词不能为空")
 
         image_urls = data.get("image_urls", [])
-        config_id = data.get("config_id")
+ 
 
         # 验证图片URL格式
         if image_urls:
@@ -77,7 +77,7 @@ def generate_content():
         generation = generation_service.create_generation(
             prompt=prompt,
             image_urls=image_urls,
-            config_id=config_id,
+   
             user_id=user_id,
             ip_address=ip_address,
             user_agent=user_agent,

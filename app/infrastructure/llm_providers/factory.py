@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional
 from app.infrastructure.llm_providers.base import LLMProviderInterface
 from app.infrastructure.llm_providers.openai_provider import OpenLLMProvider
 from app.infrastructure.llm_providers.anthropic_provider import AnthropicProvider
+from app.infrastructure.llm_providers.volcano_provider import VolcanoProvider
 from app.core.exceptions import APIException
 from app.core.status_codes import EXTERNAL_API_ERROR
 
@@ -17,6 +18,7 @@ class LLMProviderFactory:
     PROVIDERS = {
         "openai": OpenLLMProvider,
         "anthropic": AnthropicProvider,
+        "volcano": VolcanoProvider
     }
     
     @classmethod
