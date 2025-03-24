@@ -8,6 +8,7 @@ class Config:
     SECRET_KEY = "dev-secret-key"
     DEBUG = False
     TESTING = False
+    SQLALCHEMY_ECHO = False
     
     # 数据库配置
     SQLALCHEMY_DATABASE_URI = "sqlite:///imp.db"
@@ -59,7 +60,7 @@ class Config:
 class DevelopmentConfig(Config):
     """开发环境配置"""
     DEBUG = True
-    SQLALCHEMY_ECHO = True
+    SQLALCHEMY_ECHO = False
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:123456@localhost/imp_db"
 
 class TestingConfig(Config):

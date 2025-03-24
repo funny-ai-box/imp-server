@@ -19,6 +19,7 @@ def setup_logging(app: Flask):
         '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
     )
     
+    
     # 确保日志目录存在
     log_dir = os.path.join(app.root_path, '..', 'logs')
     os.makedirs(log_dir, exist_ok=True)
@@ -45,6 +46,7 @@ def setup_logging(app: Flask):
     # 设置第三方库的日志级别
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
     logging.getLogger('sqlalchemy').setLevel(logging.WARNING)
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
     
     # 请求日志中间件
     @app.before_request

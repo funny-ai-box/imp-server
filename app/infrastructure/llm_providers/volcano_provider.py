@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Optional
 
 from volcenginesdkarkruntime import Ark
 import httpx
-
+from openai import OpenAI
 from app.infrastructure.llm_providers.base import LLMProviderInterface
 from app.core.exceptions import APIException
 from app.core.status_codes import EXTERNAL_API_ERROR, TIMEOUT, RATE_LIMITED
@@ -43,25 +43,19 @@ class VolcanoProvider(LLMProviderInterface):
             
             # 设置超时时间
             timeout_seconds = kwargs.get("timeout", 300)
-            
+            print(f"设置超时时间为 {timeout_seconds} 秒")
+            print(f"默认模型为 {self.default_model}")
+            print(f"api_key为 {api_key}")
             # 初始化客户端
             # 如果提供了app_id和app_secret，则使用IAM认证
-            if "app_id" in kwargs and "app_secret" in kwargs:
-                self.client = Ark(
-                    ak=kwargs["app_id"],
-                    sk=kwargs["app_secret"],
-                    timeout=httpx.Timeout(timeout=timeout_seconds)
-                )
-            else:
-                # 否则使用API密钥认证
-                self.client = Ark(
+            self.client = OpenAI(
                     api_key=api_key,
-                    timeout=httpx.Timeout(timeout=timeout_seconds)
+                    base_url = "https://ark.cn-beijing.volces.com/api/v3",
                 )
-                
-            logger.info(f"Volcano Engine Provider initialized with model: {self.default_model}")
+            print(f"火山引擎客户端初始化成功")
+            logger.info(f"火山引擎初始化成功: {self.default_model}")
         except Exception as e:
-            logger.error(f"Failed to initialize Volcano Engine client: {str(e)}")
+            logger.error(f"失败初始化火山引擎: {str(e)}")
             raise APIException(f"火山引擎初始化失败: {str(e)}", EXTERNAL_API_ERROR)
     
     def _handle_api_error(self, operation: str, error: Exception) -> None:
@@ -213,8 +207,17 @@ class VolcanoProvider(LLMProviderInterface):
                     if key not in params:
                         params[key] = value
                 
+                print(f"发送到火山引擎的请求参数:")
+                print(f"- 模型: {params['model']}")
+                print(f"- 消息数量: {len(params['messages'])}")
+                print(f"- 温度: {params['temperature']}")
+                print(f"- 最大tokens: {params['max_tokens']}")
+                
                 # 发送请求
+                print("开始调用火山引擎API...")
                 response = self.client.chat.completions.create(**params)
+                print(response)
+                print("API调用成功!")
                 
                 # 构造统一格式的返回结果
                 result = {
