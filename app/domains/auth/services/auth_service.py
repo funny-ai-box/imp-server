@@ -191,7 +191,7 @@ class AuthService:
                         user_agent=user_agent,
                         failure_reason="用户不存在",
                     )
-                raise AuthenticationException("手机号或密码不正确")
+                raise ValidationException("手机号或密码不正确")
 
             # 检查用户状态
             if user.status != 1:
@@ -205,7 +205,7 @@ class AuthService:
                     user_agent=user_agent,
                     failure_reason="账户不可用",
                 )
-                raise AuthenticationException("账户不可用或已被锁定")
+                raise ValidationException("账户不可用或已被锁定")
 
             # 解密密码
             try:
@@ -235,7 +235,7 @@ class AuthService:
                     user_agent=user_agent,
                     failure_reason="密码错误",
                 )
-                raise AuthenticationException("手机号或密码不正确")
+                raise ValidationException("手机号或密码不正确")
 
             # 生成访问令牌
             token = self._generate_jwt_token(user)
@@ -277,7 +277,7 @@ class AuthService:
                 raise
             print(e)
             logger.error(f"Login error: {str(e)}")
-            raise AuthenticationException("登录过程中发生错误")
+            raise ValidationException("登录过程中发生错误")
 
     def verify_jwt_token(self, token: str) -> Dict[str, Any]:
         """验证JWT令牌
