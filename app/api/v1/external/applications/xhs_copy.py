@@ -15,8 +15,10 @@ from app.infrastructure.database.repositories.user_llm_config_repository import 
 from app.infrastructure.database.repositories.xhs_copy_repository import (
     XhsCopyGenerationRepository,
 )
+from app.domains.foundation.services.forbidden_words_service import ForbiddenWordsService
+from app.infrastructure.database.repositories.forbidden_words_repository import ForbiddenWordsRepository
 
-# 注: 未来应将XhsCopyGenerationRepository合并到通用的GenerationRepository中
+
 from app.infrastructure.llm_providers.factory import LLMProviderFactory
 from app.api.middleware.app_key_auth import app_key_required
 
@@ -43,6 +45,16 @@ def _validate_and_extract_params(request):
         for url in image_urls:
             if not isinstance(url, str) or not url.startswith(("http://", "https://")):
                 raise ValidationException(f"无效的图片URL: {url}", PARAMETER_ERROR)
+
+    custom_forbidden_words = data.get("forbidden_words", [])
+    if custom_forbidden_words and not isinstance(custom_forbidden_words, list):
+        raise ValidationException("自定义禁用词必须是数组格式", PARAMETER_ERROR)
+    
+    # 确保所有禁用词是字符串
+    if custom_forbidden_words:
+        for word in custom_forbidden_words:
+            if not isinstance(word, str):
+                raise ValidationException("禁用词必须是字符串", PARAMETER_ERROR)
 
     return data
 
@@ -112,7 +124,7 @@ def _create_llm_provider(user_llm_config):
 
 
 
-def _prepare_prompts(config, prompt, image_urls):
+def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
     """准备提示词"""
     system_prompt = config.get(
         "system_prompt", "你是一位专业的小红书博主，擅长编写吸引人的小红书文案。"
@@ -144,6 +156,12 @@ def _prepare_prompts(config, prompt, image_urls):
     requirements += f"\n3. 生成{config.get('tags_count', 5)}个适合的标签"
     if config.get("include_emojis", True):
         requirements += "\n4. 适当地使用表情符号增加趣味性"
+    
+    # 添加禁用词要求
+    if custom_forbidden_words and len(custom_forbidden_words) > 0:
+        forbidden_words_str = "、".join(custom_forbidden_words)
+        requirements += f"\n5. 严禁在文案中使用以下词语: {forbidden_words_str}"
+    
     requirements += (
         "\n\n请按照以下格式输出：\n【标题】\n【正文】\n【标签】标签1 标签2 标签3..."
     )
@@ -286,7 +304,19 @@ def _update_generation_success(
     content,
     tags,
     tokens_used,
+    tokens_prompt,
+    tokens_completion,
     duration_ms,
+    provider_type,
+    model_name,
+    temperature,
+    max_tokens,
+    user_llm_config_id,
+    contains_forbidden_words=False,
+    detected_forbidden_words=None,
+    estimated_cost=0.0,
+    raw_request=None,
+    raw_response=None
 ):
     """更新生成成功状态"""
     update_data = {
@@ -295,7 +325,19 @@ def _update_generation_success(
         "content": content,
         "tags": tags,
         "tokens_used": tokens_used,
+        "tokens_prompt": tokens_prompt,
+        "tokens_completion": tokens_completion,
         "duration_ms": duration_ms,
+        "provider_type": provider_type,
+        "model_name": model_name,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "user_llm_config_id": user_llm_config_id,
+        "contains_forbidden_words": contains_forbidden_words,
+        "detected_forbidden_words": detected_forbidden_words or [],
+        "estimated_cost": estimated_cost,
+        "raw_request": raw_request,
+        "raw_response": raw_response
     }
 
     return generation_repo.update(generation_id, user_id, update_data)
@@ -344,10 +386,28 @@ def external_generate():
         user_app_repo = UserAppRepository(db_session)
         user_llm_config_repo = UserLLMConfigRepository(db_session)
         generation_repo = XhsCopyGenerationRepository(db_session)
+        
+        # 获取系统预置禁用词（如果需要）
+
+        
+        forbidden_words_repo = ForbiddenWordsRepository(db_session)
+        forbidden_words_service = ForbiddenWordsService(forbidden_words_repo)
+        
+        # 获取应用场景的系统预置禁用词列表
+        try:
+            system_forbidden_words = [word["word"] for word in 
+                                    forbidden_words_service.get_all_words("xhs_copy")]
+        except Exception as e:
+            logger.warning(f"无法获取系统预置禁用词: {str(e)}")
+            system_forbidden_words = []
 
         # 提取数据
         prompt = data["prompt"]
         image_urls = data.get("image_urls", [])
+        custom_forbidden_words = data.get("forbidden_words", [])
+        
+        # 合并系统预置禁用词和自定义禁用词
+        all_forbidden_words = list(set(system_forbidden_words + custom_forbidden_words))
 
         # 从应用中获取配置和关联的LLM配置
         config = app.published_config.get("config", {})
@@ -374,8 +434,8 @@ def external_generate():
             # 创建LLM提供商实例
             ai_provider = _create_llm_provider(user_llm_config)
 
-            # 准备提示词
-            messages = _prepare_prompts(config, prompt, image_urls)
+            # 准备提示词，包含禁用词
+            messages = _prepare_prompts(config, prompt, image_urls, all_forbidden_words)
 
             # 确定是否有图片
             has_images = bool(image_urls) and len(image_urls) > 0
@@ -417,18 +477,50 @@ def external_generate():
 
             # 计算处理时间
             duration_ms = int((time.time() - start_time) * 1000)
-
+            
+            # 检查生成内容是否包含禁用词
+            contains_forbidden = False
+            detected_words = []
+            
+            if all_forbidden_words:
+                generated_text = parsed_result["title"] + " " + parsed_result["body"]
+                generated_text_lower = generated_text.lower()
+                
+                for word in all_forbidden_words:
+                    if word.lower() in generated_text_lower:
+                        contains_forbidden = True
+                        detected_words.append(word)
+            
             # 更新生成记录
+            
             generation = _update_generation_success(
-                generation_repo,
-                generation_id=generation.id,
-                user_id=user_id,
-                title=parsed_result["title"],
-                content=parsed_result["body"],
-                tags=parsed_result["tags"],
-                tokens_used=tokens_used,
-                duration_ms=duration_ms,
-            )
+    generation_repo,
+    generation_id=generation.id,
+    user_id=user_id,
+    title=parsed_result["title"],
+    content=parsed_result["body"],
+    tags=parsed_result["tags"],
+    tokens_used=tokens_used,
+    tokens_prompt=response.get("usage", {}).get("prompt_tokens", 0),
+    tokens_completion=response.get("usage", {}).get("completion_tokens", 0),
+    duration_ms=duration_ms,
+    provider_type=user_llm_config.provider_type,
+    model_name=used_model,
+    temperature=temperature,
+    max_tokens=max_tokens,
+    user_llm_config_id=user_llm_config_id,
+    contains_forbidden_words=contains_forbidden,
+    detected_forbidden_words=detected_words,
+
+    raw_request={
+        "prompt": prompt,
+        "image_urls": image_urls,
+        "custom_forbidden_words": custom_forbidden_words,
+        "config": config,
+        "messages": messages
+    },
+    raw_response=response
+)
 
             # 创建调试信息对象
             debug_info = {
@@ -445,6 +537,7 @@ def external_generate():
                 "duration_ms": duration_ms,
                 "app_id": app.id,
                 "user_llm_config_id": user_llm_config_id,
+                "forbidden_words_used": detected_words if contains_forbidden else []
             }
 
             # 格式化结果
@@ -458,6 +551,8 @@ def external_generate():
                 "status": generation.status,
                 "model": used_model,
                 "provider_type": user_llm_config.provider_type,
+                "contains_forbidden_words": contains_forbidden,
+                "detected_forbidden_words": detected_words,
                 "debug": debug_info  # 添加调试信息
             }
 

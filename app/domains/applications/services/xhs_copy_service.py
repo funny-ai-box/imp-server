@@ -465,19 +465,50 @@ class XhsCopyGenerationService:
         return {"title": title, "body": body, "tags": tags}
 
     def _update_generation_success(
-        self, generation_id, user_id, title, body, tags, tokens_used, duration_ms
-    ):
+    generation_repo,
+    generation_id,
+    user_id,
+    title,
+    content,
+    tags,
+    tokens_used,
+    tokens_prompt,
+    tokens_completion,
+    duration_ms,
+    provider_type,
+    model_name,
+    temperature,
+    max_tokens,
+    user_llm_config_id,
+    contains_forbidden_words=False,
+    detected_forbidden_words=None,
+    estimated_cost=0.0,
+    raw_request=None,
+    raw_response=None
+):
         """更新生成成功状态"""
         update_data = {
             "status": "completed",
             "title": title,
-            "content": body,
+            "content": content,
             "tags": tags,
             "tokens_used": tokens_used,
+            "tokens_prompt": tokens_prompt,
+            "tokens_completion": tokens_completion,
             "duration_ms": duration_ms,
+            "provider_type": provider_type,
+            "model_name": model_name,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "user_llm_config_id": user_llm_config_id,
+            "contains_forbidden_words": contains_forbidden_words,
+            "detected_forbidden_words": detected_forbidden_words or [],
+            "estimated_cost": estimated_cost,
+            "raw_request": raw_request,
+            "raw_response": raw_response
         }
 
-        return self.generation_repo.update(generation_id, user_id, update_data)
+        return generation_repo.update(generation_id, user_id, update_data)
 
     def _update_generation_failure(
         self, generation_id, user_id, error_message, duration_ms
