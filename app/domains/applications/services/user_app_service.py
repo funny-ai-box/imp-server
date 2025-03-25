@@ -373,6 +373,14 @@ class UserAppService:
                 raise ValidationException(
                     "content_length必须在100-2000之间", PARAMETER_ERROR
                 )
+                
+        # 验证模型名称（可选）
+        if "model_name" in config and not isinstance(config["model_name"], str):
+            raise ValidationException("model_name必须是字符串", PARAMETER_ERROR)
+            
+        # 验证视觉模型名称（可选）
+        if "vision_model_name" in config and not isinstance(config["vision_model_name"], str):
+            raise ValidationException("vision_model_name必须是字符串", PARAMETER_ERROR)
 
     def _generate_app_key(self) -> str:
         """生成应用密钥"""

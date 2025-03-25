@@ -109,15 +109,7 @@ def _create_llm_provider(user_llm_config):
         print(f"详细错误: {traceback.format_exc()}")
         raise APIException(f"创建LLM提供商失败: {str(e)}", GENERATION_FAILED)
 
-def _get_model_name(provider_type):
-    """根据提供商类型获取默认模型名称"""
-    if provider_type == "OpenAI":
-        return "gpt-4o"
-    elif provider_type == "Claude":
-        return "claude-3-opus-20240229"
-    elif provider_type == "Volcano":
-        return "deepseek-r1-250120"
-    return None
+
 
 
 def _prepare_prompts(config, prompt, image_urls):
@@ -158,10 +150,26 @@ def _prepare_prompts(config, prompt, image_urls):
 
     user_prompt += requirements
 
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
+    if image_urls and len(image_urls) > 0:
+        # 如果有图片，使用支持图片的格式
+        content = [{"type": "text", "text": user_prompt}]
+        
+        # 最多添加4张图片（避免超出模型限制）
+        for i, url in enumerate(image_urls[:4]):
+            content.append({"type": "image_url", "image_url": {"url": url}})
+            
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": content}
+        ]
+    else:
+        # 如果没有图片，使用普通文本格式
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+
+    return messages
 
 
 def _parse_generation_result(content, config):
@@ -212,6 +220,47 @@ def _parse_generation_result(content, config):
 
     return {"title": title, "body": body, "tags": tags}
 
+def _get_model_name(app, user_llm_config, has_images=False):
+    """
+    获取模型名称，优先使用用户配置的模型
+    
+    Args:
+        app: 应用对象，包含配置信息
+        user_llm_config: 用户LLM配置
+        has_images: 是否有图片输入
+        
+    Returns:
+        模型名称
+    """
+    # 获取提供商类型
+    provider_type = user_llm_config.provider_type
+    
+    # 从应用配置中获取模型名称
+    config = app.published_config.get("config", {})
+    model_name = config.get("model_name")
+    
+    # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
+    if has_images and provider_type == "Volcano":
+        vision_model_name = config.get("vision_model_name")
+        if vision_model_name:
+            return vision_model_name
+    
+    # 如果用户指定了模型，使用用户指定的
+    if model_name:
+        return model_name
+    
+    # 否则使用默认模型
+    if provider_type == "OpenAI":
+        return "gpt-4o"
+    elif provider_type == "Claude":
+        return "claude-3-opus-20240229"
+    elif provider_type == "Volcano":
+        if has_images:
+            return "doubao-1.5-vision-pro-32k-250115"
+        else:
+            return "deepseek-r1-250120"
+    else:
+        return None
 
 def _create_generation_record(
     generation_repo, prompt, image_urls, app_id, user_id, ip_address, user_agent
@@ -268,7 +317,6 @@ def _update_generation_failure(
 @external_xhs_copy_bp.route("/generate", methods=["POST"])
 @app_key_required
 def external_generate():
-
     try:
         # 获取app_key_auth中间件已验证的应用和用户信息
         app_key = g.app_key
@@ -329,12 +377,25 @@ def external_generate():
             # 准备提示词
             messages = _prepare_prompts(config, prompt, image_urls)
 
-            # 确定模型名称
-            model_name = _get_model_name(user_llm_config.provider_type)
+            # 确定是否有图片
+            has_images = bool(image_urls) and len(image_urls) > 0
+            
+            # 获取模型名称
+            model_name = _get_model_name(app, user_llm_config, has_images)
 
-            # 生成文案
+            # 生成文案参数
             max_tokens = config.get("max_tokens", 2000)
             temperature = config.get("temperature", 0.7)
+            
+            # 保存请求参数用于调试
+            request_params = {
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "model": model_name,
+                "has_images": has_images,
+                "config": config,
+            }
 
             # 调用LLM服务
             response = ai_provider.generate_chat_completion(
@@ -350,6 +411,9 @@ def external_generate():
 
             # 获取tokens使用量
             tokens_used = response.get("usage", {}).get("total_tokens", 0)
+            
+            # 获取实际使用的模型（可能与请求的不同）
+            used_model = response.get("model", model_name)
 
             # 计算处理时间
             duration_ms = int((time.time() - start_time) * 1000)
@@ -366,15 +430,35 @@ def external_generate():
                 duration_ms=duration_ms,
             )
 
+            # 创建调试信息对象
+            debug_info = {
+                "provider_type": user_llm_config.provider_type,
+                "requested_model": model_name,
+                "actual_model": used_model,
+                "request_params": request_params,
+                "config_used": config,
+                "tokens": {
+                    "total": tokens_used,
+                    "prompt": response.get("usage", {}).get("prompt_tokens", 0),
+                    "completion": response.get("usage", {}).get("completion_tokens", 0),
+                },
+                "duration_ms": duration_ms,
+                "app_id": app.id,
+                "user_llm_config_id": user_llm_config_id,
+            }
+
             # 格式化结果
             result = {
                 "id": generation.id,
                 "title": generation.title,
                 "content": generation.content,
                 "tags": generation.tags,
-                "tokens_used": generation.tokens_used,
-                "duration_ms": generation.duration_ms,
+                "tokens_used": tokens_used,
+                "duration_ms": duration_ms,
                 "status": generation.status,
+                "model": used_model,
+                "provider_type": user_llm_config.provider_type,
+                "debug": debug_info  # 添加调试信息
             }
 
             return success_response(result, "生成小红书文案成功")
@@ -393,7 +477,7 @@ def external_generate():
             # 重新抛出异常
             if isinstance(e, APIException):
                 raise
-            raise APIException(f"生成文案2失败: {str(e)}", GENERATION_FAILED)
+            raise APIException(f"生成文案失败: {str(e)}", GENERATION_FAILED)
 
     except ValidationException as e:
         # 参数验证失败
@@ -408,8 +492,7 @@ def external_generate():
         logger.error(
             f"Unexpected error in external generate: {str(e)}\n{traceback.format_exc()}"
         )
-        raise APIException(f"生成文案1失败: {str(e)}", GENERATION_FAILED)
-
+        raise APIException(f"生成文案失败: {str(e)}", GENERATION_FAILED)
 
 @external_xhs_copy_bp.route("/rate", methods=["POST"])
 @app_key_required

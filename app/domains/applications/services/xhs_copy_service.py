@@ -102,13 +102,18 @@ class XhsCopyGenerationService:
         try:
             # 获取LLM服务
             ai_provider = self._get_llm_provider(app, user_id)
+            user_llm_config = self.user_llm_config_repo.get_by_id(
+    app.user_llm_config_id, user_id
+)
 
             # 准备提示词
             messages = self._prepare_prompts(config, prompt, image_urls)
 
+            has_images = bool(image_urls) and len(image_urls) > 0
+
             # 获取模型名称
             provider_type = self._get_provider_type(app, user_id)
-            model_name = self._get_model_name(provider_type, ai_provider)
+            model_name = self._get_model_name(app, user_llm_config, has_images)
 
             # 生成文案
             max_tokens = config.get("max_tokens", 2000)
@@ -310,12 +315,7 @@ class XhsCopyGenerationService:
         else:
             user_prompt = f"{user_prompt}\n\n{prompt}"
 
-        # 添加图片描述
-        if image_urls:
-            image_descriptions = "\n\n参考以下图片URL："
-            for i, url in enumerate(image_urls, 1):
-                image_descriptions += f"\n图片{i}：{url}"
-            user_prompt += image_descriptions
+        
 
         # 添加配置要求
         requirements = "\n\n请按以下要求生成文案："
@@ -330,22 +330,71 @@ class XhsCopyGenerationService:
 
         user_prompt += requirements
 
-        return [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ]
-
-    def _get_model_name(self, provider_type, ai_provider):
-        """获取模型名称"""
-        if provider_type == "OpenAI":
-            return "gpt-4o"  # 默认使用gpt-4o
-        elif provider_type == "Claude":
-            return "claude-3-opus-20240229"  # 默认使用Claude-3-Opus
-        elif provider_type == "Volcano":
-            return "deepseek-r1-250120"  # 默认使用Deepseek
+        # 创建消息内容
+        if image_urls and len(image_urls) > 0:
+            # 如果有图片，使用支持图片的格式
+            content = [{"type": "text", "text": user_prompt}]
+            
+            # 最多添加4张图片（避免超出模型限制）
+            for i, url in enumerate(image_urls[:4]):
+                content.append({"type": "image_url", "image_url": {"url": url}})
+                
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
         else:
-            # 使用提供商的默认模型
-            return None
+            # 如果没有图片，使用普通文本格式
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+
+        return messages
+
+    def _get_model_name(self, app, user_llm_config, has_images=False):
+        """
+        获取模型名称，优先使用用户配置的模型
+        
+        Args:
+            app: 应用对象，包含配置信息
+            user_llm_config: 用户LLM配置
+            has_images: 是否有图片输入
+            
+        Returns:
+            模型名称
+        """
+        # 首先检查应用配置中是否指定了模型
+        provider_type = user_llm_config.provider_type
+        
+        # 从应用配置中获取模型名称
+        model_name = None
+        if app.config and "model_name" in app.config:
+            model_name = app.config.get("model_name")
+            
+        # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
+        if has_images and provider_type == "Volcano":
+            vision_model_name = app.config.get("vision_model_name")
+            if vision_model_name:
+                return vision_model_name
+        
+        # 如果用户指定了模型，使用用户指定的
+        if model_name:
+            return model_name
+        
+        # 否则使用默认模型
+        if provider_type == "OpenAI":
+            return "gpt-4o"  # 默认OpenAI模型
+        elif provider_type == "Claude":
+            return "claude-3-opus-20240229"  # 默认Claude模型
+        elif provider_type == "Volcano":
+            if has_images:
+                return "doubao-1.5-vision-pro-32k-250115"  # 默认火山引擎视觉模型
+            else:
+                return "deepseek-r1-250120"  # 默认火山引擎文本模型
+        else:
+            # 如果是其他提供商，可能需要添加更多默认值
+            return None  # 返回None表示使用提供商的默认模型
 
     def _call_llm_service(self, ai_provider, messages, model, max_tokens, temperature):
         """调用LLM服务"""
