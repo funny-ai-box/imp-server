@@ -104,21 +104,34 @@ def decrypt_with_private_key(encrypted_message: str, private_key_pem: str = None
         # Base64解码
         encrypted = base64.b64decode(encrypted_message)
         
-        # 解密消息
-        decrypted = private_key.decrypt(
-            encrypted,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
+        # 尝试使用OAEP填充解密
+        try:
+            decrypted = private_key.decrypt(
+                encrypted,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None
+                )
             )
-        )
+        except Exception as oaep_error:
+            # 如果OAEP解密失败，尝试使用PKCS#1 v1.5填充解密
+            try:
+                decrypted = private_key.decrypt(
+                    encrypted,
+                    padding.PKCS1v15()
+                )
+                logger.info("使用PKCS#1 v1.5填充解密成功")
+            except Exception as pkcs_error:
+                # 如果两种方法都失败，记录详细错误并重新抛出原始异常
+                logger.error(f"OAEP解密失败: {str(oaep_error)}")
+                logger.error(f"PKCS#1 v1.5解密失败: {str(pkcs_error)}")
+                raise oaep_error
         
         return decrypted.decode('utf-8')
     except Exception as e:
         logger.error(f"Decryption error: {str(e)}")
         raise
-
 def save_keys_to_files(private_key: str, public_key: str, private_key_path: str, public_key_path: str) -> None:
     """将RSA密钥保存到文件
     
