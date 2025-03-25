@@ -6,7 +6,7 @@ import json
 from flask import Blueprint, request, g
 from app.core.responses import success_response
 from app.core.exceptions import APIException, ValidationException
-from app.core.status_codes import CLASSIFICATION_FAILED, PARAMETER_ERROR
+from app.core.status_codes import CLASSIFICATION_FAILED
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
@@ -29,25 +29,25 @@ def _validate_and_extract_params(request):
     """验证和提取请求参数"""
     data = request.get_json()
     if not data:
-        raise ValidationException("请求数据不能为空", PARAMETER_ERROR)
+        raise ValidationException("请求数据不能为空")
 
     # 提取图片URL
     image_url = data.get("image_url")
     if not image_url:
-        raise ValidationException("图片URL不能为空", PARAMETER_ERROR)
+        raise ValidationException("图片URL不能为空")
 
     # 验证图片URL格式
     if not image_url.startswith(("http://", "https://")):
-        raise ValidationException(f"无效的图片URL: {image_url}", PARAMETER_ERROR)
+        raise ValidationException(f"无效的图片URL: {image_url}")
 
     # 验证分类列表
     categories = data.get("categories")
     if not categories or not isinstance(categories, list) or len(categories) < 2:
-        raise ValidationException("分类列表必须至少包含两个选项", PARAMETER_ERROR)
+        raise ValidationException("分类列表必须至少包含两个选项")
 
     for category in categories:
         if not isinstance(category, dict) or "id" not in category or "text" not in category:
-            raise ValidationException("分类列表格式错误，每项必须包含id和text字段", PARAMETER_ERROR)
+            raise ValidationException("分类列表格式错误，每项必须包含id和text字段")
 
     return data
 
@@ -264,11 +264,11 @@ def external_classify():
         # 验证应用类型和发布状态
         if app.app_type != "image_classify":
             raise ValidationException(
-                "该应用密钥不属于图片分类应用", PARAMETER_ERROR
+                "该应用密钥不属于图片分类应用"
             )
 
         if not app.published or not app.published_config:
-            raise ValidationException("该应用未发布配置", PARAMETER_ERROR)
+            raise ValidationException("该应用未发布配置")
 
         # 获取IP和用户代理
         ip_address = request.remote_addr
@@ -407,16 +407,16 @@ def rate_classification():
         # 验证请求数据
         data = request.get_json()
         if not data:
-            raise ValidationException("请求数据不能为空", PARAMETER_ERROR)
+            raise ValidationException("请求数据不能为空",)
 
         # 提取评分参数
         classification_id = data.get("classification_id")
         if not classification_id:
-            raise ValidationException("缺少必填参数: classification_id", PARAMETER_ERROR)
+            raise ValidationException("缺少必填参数: classification_id",)
 
         rating = data.get("rating")
         if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
-            raise ValidationException("评分必须是1-5之间的整数", PARAMETER_ERROR)
+            raise ValidationException("评分必须是1-5之间的整数",)
 
         feedback = data.get("feedback")
 

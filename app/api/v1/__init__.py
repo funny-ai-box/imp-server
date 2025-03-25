@@ -14,10 +14,11 @@ from app.api.v1.foundation.user_llm_config import user_llm_config_bp
 
 # 导入应用相关蓝图
 from app.api.v1.applications.xhs_copy import xhs_copy_bp
+from app.api.v1.applications.image_classify import image_classify_bp
 from app.api.v1.applications.user_app import user_app_bp
 from app.api.v1.applications.app_store import app_store_bp
 
-from app.api.v1.applications.image_classify import image_classify_bp
+from app.api.v1.external.applications.image_classify import external_image_classify_bp
 
 
 # 导入外部接口相关蓝图
@@ -43,6 +44,7 @@ applications_bp = Blueprint("applications", __name__, url_prefix="/applications"
 
 # 注册各应用类型蓝图
 applications_bp.register_blueprint(xhs_copy_bp, url_prefix="/xhs_copy")
+applications_bp.register_blueprint(image_classify_bp, url_prefix="/image_classify")
 applications_bp.register_blueprint(user_app_bp, url_prefix="/user_app")
 applications_bp.register_blueprint(app_store_bp, url_prefix="/store")
 
@@ -69,7 +71,7 @@ external_applications_bp.register_blueprint(
     external_xhs_copy_bp, url_prefix="/xhs_copy"
 )
 external_applications_bp.register_blueprint(
-    image_classify_bp, url_prefix="/image_classify"
+    external_image_classify_bp, url_prefix="/image_classify"
 )
 external_bp.register_blueprint(external_applications_bp)
 
