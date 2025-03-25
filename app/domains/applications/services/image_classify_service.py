@@ -271,7 +271,7 @@ class ImageClassifyService:
         # 系统提示词
         system_prompt = config.get(
             "system_prompt", 
-            "你是一位专业的图像分类助手，你的任务是判断图片属于哪个预定义分类。"
+            "你是一位专业的图像分类助手，你的任务是判断图片属于哪个预定义分类。请仔细分析图片内容，如果图片不属于任何分类或信息值太低，请明确表示无法分类。"
         )
 
         # 构建分类选项文本
@@ -280,18 +280,26 @@ class ImageClassifyService:
         # 用户提示词
         user_prompt = f"""请分析下面这张图片，并判断它应该属于以下哪个分类：
 
-{categories_text}
+    {categories_text}
 
-请仔细分析图片内容，并给出你的分类结果和推理过程。
-你的回答必须是以下JSON格式：
-{{
-  "category_id": "分类ID",
-  "category_name": "分类名称",
-  "confidence": 0.95,
-  "reasoning": "这里是你对分类的推理过程"
-}}
+    请仔细分析图片内容，并给出你的分类结果和推理过程。
+    你的回答必须是以下JSON格式：
+    {{
+    "category_id": "分类ID",
+    "category_name": "分类名称",
+    "confidence": 0.95,
+    "reasoning": "这里是你对分类的推理过程"
+    }}
 
-只能选择一个最匹配的分类，置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类。"""
+    只能选择一个最匹配的分类。如果图片内容不清晰、信息值低或不属于任何一个给定分类，请返回以下JSON格式：
+    {{
+    "category_id": null,
+    "category_name": null,
+    "confidence": 0,
+    "reasoning": "这里说明为什么无法对图片进行分类的原因"
+    }}
+
+    置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类或无法分类的原因。"""
 
         # 构建消息
         messages = [
@@ -327,6 +335,7 @@ class ImageClassifyService:
         """解析分类结果
         
         尝试从LLM响应中提取JSON格式的分类结果，包含category_id、category_name、confidence和reasoning
+        支持无法分类的情况，返回null值
         """
         try:
             # 尝试获取JSON格式的响应
@@ -334,10 +343,26 @@ class ImageClassifyService:
             if json_content:
                 result = json.loads(json_content)
                 
+                # 检查是否为无法分类的情况（空分类）
+                if result.get("category_id") is None and result.get("category_name") is None:
+                    return {
+                        "category_id": None,
+                        "category_name": None,
+                        "confidence": 0,
+                        "reasoning": result.get("reasoning", "无法对图片进行分类，信息值太低或不符合任何给定分类")
+                    }
+                
                 # 验证结果中包含必需的字段
                 if "category_id" not in result or "category_name" not in result:
                     logger.warning(f"分类结果缺少必要字段: {result}")
-                    # 尝试推断分类
+                    # 尝试推断分类或返回无法分类
+                    if "无法分类" in content or "不属于任何分类" in content:
+                        return {
+                            "category_id": None,
+                            "category_name": None,
+                            "confidence": 0,
+                            "reasoning": "根据LLM响应，图片无法分类"
+                        }
                     return self._guess_classification(content, categories)
                 
                 # 确保所有必要字段都存在
@@ -358,6 +383,15 @@ class ImageClassifyService:
                 
                 return result
             else:
+                # 检查是否有明确表示无法分类的内容
+                if "无法分类" in content or "不属于任何分类" in content:
+                    return {
+                        "category_id": None,
+                        "category_name": None,
+                        "confidence": 0,
+                        "reasoning": "LLM表示无法分类，但未返回标准JSON格式"
+                    }
+                
                 # 无法解析JSON，尝试推断分类
                 return self._guess_classification(content, categories)
         except Exception as e:
@@ -416,11 +450,13 @@ class ImageClassifyService:
         }
 
     def _update_classification_success(
-        self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms
-    ):
-        """更新分类成功状态"""
+    self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms
+):
+        """更新分类成功状态，支持无法分类的情况"""
+        status = "completed" if category_id is not None else "unclassified"
+        
         update_data = {
-            "status": "completed",
+            "status": status,
             "category_id": category_id,
             "category_name": category_name,
             "confidence": confidence,
