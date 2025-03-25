@@ -3,10 +3,11 @@ import time
 import logging
 import traceback
 import json
+import re
 from flask import Blueprint, request, g
 from app.core.responses import success_response
 from app.core.exceptions import APIException, ValidationException
-from app.core.status_codes import CLASSIFICATION_FAILED
+from app.core.status_codes import CLASSIFICATION_FAILED, PARAMETER_ERROR, INVALID_IMAGE_URL, INVALID_CATEGORIES
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
@@ -29,25 +30,25 @@ def _validate_and_extract_params(request):
     """验证和提取请求参数"""
     data = request.get_json()
     if not data:
-        raise ValidationException("请求数据不能为空")
+        raise ValidationException("请求数据不能为空", PARAMETER_ERROR)
 
     # 提取图片URL
     image_url = data.get("image_url")
     if not image_url:
-        raise ValidationException("图片URL不能为空")
+        raise ValidationException("图片URL不能为空", INVALID_IMAGE_URL)
 
     # 验证图片URL格式
-    if not image_url.startswith(("http://", "https://")):
-        raise ValidationException(f"无效的图片URL: {image_url}")
+    if not isinstance(image_url, str) or not image_url.startswith(("http://", "https://")):
+        raise ValidationException(f"无效的图片URL: {image_url}", INVALID_IMAGE_URL)
 
     # 验证分类列表
     categories = data.get("categories")
     if not categories or not isinstance(categories, list) or len(categories) < 2:
-        raise ValidationException("分类列表必须至少包含两个选项")
+        raise ValidationException("分类列表必须至少包含两个选项", INVALID_CATEGORIES)
 
     for category in categories:
         if not isinstance(category, dict) or "id" not in category or "text" not in category:
-            raise ValidationException("分类列表格式错误，每项必须包含id和text字段")
+            raise ValidationException("分类列表格式错误，每项必须包含id和text字段", INVALID_CATEGORIES)
 
     return data
 
@@ -63,26 +64,39 @@ def _create_llm_provider(user_llm_config):
                 raise APIException("您尚未配置火山引擎API密钥", CLASSIFICATION_FAILED)
                 
             # 记录连接尝试（用于调试）
-            print(f"正在尝试连接到火山引擎，基础URL为: {user_llm_config.api_base_url}")
+            logger.info(f"正在尝试连接到火山引擎，基础URL为: {user_llm_config.api_base_url}")
             
+            # 火山引擎可能需要额外的配置项
+            config = {
+                "timeout": user_llm_config.request_timeout or 60,
+                "max_retries": user_llm_config.max_retries or 3,
+                "api_base_url": user_llm_config.api_base_url,
+                "api_version": user_llm_config.api_version
+            }
+
+            # 添加应用ID和密钥（如果有）
+            if user_llm_config.app_id:
+                config["app_id"] = user_llm_config.app_id
+            if user_llm_config.app_secret:
+                config["app_secret"] = user_llm_config.app_secret
+
             return LLMProviderFactory.create_provider(
-                "volcano",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                api_version=user_llm_config.api_version,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                "volcano", user_llm_config.api_key, **config
             )
         else:
             raise APIException(f"图片分类仅支持Volcano提供商，当前配置: {provider_type}", CLASSIFICATION_FAILED)
     except Exception as e:
-        print(f"创建LLM提供商失败: {str(e)}")
-        print(f"详细错误: {traceback.format_exc()}")
+        logger.error(f"创建LLM提供商失败: {str(e)}")
+        logger.error(f"详细错误: {traceback.format_exc()}")
         raise APIException(f"创建LLM提供商失败: {str(e)}", CLASSIFICATION_FAILED)
 
 
-def _get_model_name():
-    """获取模型名称"""
+def _get_model_name(config=None):
+    """获取模型名称，优先使用用户配置的模型"""
+    # 如果配置中指定了视觉模型，使用配置的模型
+    if config and "vision_model_name" in config:
+        return config["vision_model_name"]
+    # 否则使用默认模型
     return "doubao-1.5-vision-pro-32k-250115"  # 火山引擎视觉模型
 
 
@@ -91,7 +105,7 @@ def _prepare_prompts(config, image_url, categories):
     # 系统提示词
     system_prompt = config.get(
         "system_prompt", 
-        "你是一位专业的图像分类助手，你的任务是判断图片属于哪个预定义分类。"
+        "你是一位专业的图像分类助手，你的任务是判断图片属于哪个预定义分类。请仔细分析图片内容，如果图片不属于任何分类或信息值太低，请明确表示无法分类。"
     )
 
     # 构建分类选项文本
@@ -111,7 +125,15 @@ def _prepare_prompts(config, image_url, categories):
   "reasoning": "这里是你对分类的推理过程"
 }}
 
-只能选择一个最匹配的分类，置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类。"""
+只能选择一个最匹配的分类。如果图片内容不清晰、信息值低或不属于任何一个给定分类，请返回以下JSON格式：
+{{
+  "category_id": null,
+  "category_name": null,
+  "confidence": 0,
+  "reasoning": "这里说明为什么无法对图片进行分类的原因"
+}}
+
+置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类或无法分类的原因。"""
 
     # 构建消息
     messages = [
@@ -128,38 +150,90 @@ def _prepare_prompts(config, image_url, categories):
     return messages
 
 
-def _parse_classification_result(content, categories):
-    """解析分类结果"""
-    try:
-        # 尝试从文本中提取JSON
-        json_start = content.find('{')
-        json_end = content.rfind('}')
-        
-        if json_start != -1 and json_end != -1:
-            json_str = content[json_start:json_end+1]
+def _extract_json(text):
+    """从文本中提取JSON格式的内容"""
+    # 尝试正则提取JSON格式内容
+    json_pattern = r'\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{(?:[^{}]|(?:\{[^{}]*\}))*\}))*\}))*\}'
+    matches = re.findall(json_pattern, text)
+    
+    if matches:
+        # 尝试解析找到的每个JSON块
+        for match in matches:
             try:
-                result = json.loads(json_str)
-                
-                # 验证结果中包含必需的字段
-                if "category_id" not in result or "category_name" not in result:
-                    logger.warning(f"分类结果缺少必要字段: {result}")
-                    # 尝试从文本中推断结果
-                    return _guess_classification(content, categories)
-                
-                # 确保所有必要字段都存在
-                if "confidence" not in result:
-                    result["confidence"] = 0.8  # 默认置信度
-                if "reasoning" not in result:
-                    result["reasoning"] = "未提供推理过程"
-                
-                return result
-            except json.JSONDecodeError:
-                logger.warning(f"JSON解析失败: {json_str}")
-                
-        # 如果无法解析JSON，尝试从文本中推断结果
-        return _guess_classification(content, categories)
+                json.loads(match)
+                return match
+            except:
+                continue
+    
+    return None
+
+
+def _parse_classification_result(content, categories):
+    """解析分类结果
+    
+    尝试从LLM响应中提取JSON格式的分类结果，包含category_id、category_name、confidence和reasoning
+    支持无法分类的情况，返回null值
+    """
+    try:
+        # 尝试获取JSON格式的响应
+        json_content = _extract_json(content)
+        if json_content:
+            result = json.loads(json_content)
+            
+            # 检查是否为无法分类的情况（空分类）
+            if result.get("category_id") is None and result.get("category_name") is None:
+                return {
+                    "category_id": None,
+                    "category_name": None,
+                    "confidence": 0,
+                    "reasoning": result.get("reasoning", "无法对图片进行分类，信息值太低或不符合任何给定分类")
+                }
+            
+            # 验证结果中包含必需的字段
+            if "category_id" not in result or "category_name" not in result:
+                logger.warning(f"分类结果缺少必要字段: {result}")
+                # 尝试推断分类或返回无法分类
+                if "无法分类" in content or "不属于任何分类" in content:
+                    return {
+                        "category_id": None,
+                        "category_name": None,
+                        "confidence": 0,
+                        "reasoning": "根据LLM响应，图片无法分类"
+                    }
+                return _guess_classification(content, categories)
+            
+            # 确保所有必要字段都存在
+            if "confidence" not in result:
+                result["confidence"] = 0.8  # 默认置信度
+            if "reasoning" not in result:
+                result["reasoning"] = "未提供推理过程"
+            
+            # 验证category_id是否在提供的分类列表中
+            valid_ids = [cat["id"] for cat in categories]
+            if result["category_id"] not in valid_ids:
+                logger.warning(f"分类ID不在提供的列表中: {result['category_id']}")
+                # 尝试匹配最接近的ID
+                for cat in categories:
+                    if cat["text"].lower() == result["category_name"].lower():
+                        result["category_id"] = cat["id"]
+                        break
+            
+            return result
+        else:
+            # 检查是否有明确表示无法分类的内容
+            if "无法分类" in content or "不属于任何分类" in content:
+                return {
+                    "category_id": None,
+                    "category_name": None,
+                    "confidence": 0,
+                    "reasoning": "LLM表示无法分类，但未返回标准JSON格式"
+                }
+            
+            # 无法解析JSON，尝试推断分类
+            return _guess_classification(content, categories)
     except Exception as e:
-        logger.error(f"解析分类结果失败: {str(e)}")
+        logger.error(f"解析分类结果失败: {str(e)}\n{traceback.format_exc()}")
+        # 尝试推断分类
         return _guess_classification(content, categories)
 
 
@@ -168,15 +242,17 @@ def _guess_classification(content, categories):
     content_lower = content.lower()
     best_match = None
     highest_score = 0
+    reasoning = "通过文本分析推断的分类结果"
     
     # 简单的文本匹配算法
     for category in categories:
         category_name = category["text"].lower()
         score = content_lower.count(category_name)
         
-        # 检查是否明确提到该分类ID
-        id_mentions = content_lower.count(category["id"].lower())
-        score += id_mentions * 2
+        # 增加对ID的检测
+        id_match = re.search(r'id[:\s]*["\']?' + re.escape(category["id"]) + r'["\']?', content_lower)
+        if id_match:
+            score += 5
         
         if score > highest_score:
             highest_score = score
@@ -185,12 +261,13 @@ def _guess_classification(content, categories):
     # 如果没有找到匹配项，选择第一个分类
     if not best_match and categories:
         best_match = categories[0]
+        reasoning = "无法确定明确分类，默认选择第一个分类"
     
     return {
         "category_id": best_match["id"],
         "category_name": best_match["text"],
-        "confidence": min(highest_score * 0.1, 0.9) if highest_score > 0 else 0.5,
-        "reasoning": "通过文本分析推断的分类结果"
+        "confidence": min(highest_score * 0.1, 0.95) if highest_score > 0 else 0.5,
+        "reasoning": reasoning
     }
 
 
@@ -220,10 +297,16 @@ def _update_classification_success(
     reasoning,
     tokens_used,
     duration_ms,
+    provider_type=None,
+    model_name=None,
+    raw_request=None,
+    raw_response=None
 ):
-    """更新分类成功状态"""
+    """更新分类成功状态，支持无法分类的情况"""
+    status = "completed" if category_id is not None else "unclassified"
+    
     update_data = {
-        "status": "completed",
+        "status": status,
         "category_id": category_id,
         "category_name": category_name,
         "confidence": confidence,
@@ -231,12 +314,24 @@ def _update_classification_success(
         "tokens_used": tokens_used,
         "duration_ms": duration_ms,
     }
+    
+    # 添加模型信息（如果提供）
+    if provider_type:
+        update_data["provider_type"] = provider_type
+    if model_name:
+        update_data["model_name"] = model_name
+    
+    # 添加原始请求/响应数据（如果提供）
+    if raw_request:
+        update_data["raw_request"] = raw_request
+    if raw_response:
+        update_data["raw_response"] = raw_response
 
     return classify_repo.update(classification_id, user_id, update_data)
 
 
 def _update_classification_failure(
-    classify_repo, classification_id, user_id, error_message, duration_ms
+    classify_repo, classification_id, user_id, error_message, duration_ms, raw_request=None
 ):
     """更新分类失败状态"""
     update_data = {
@@ -244,6 +339,10 @@ def _update_classification_failure(
         "error_message": error_message,
         "duration_ms": duration_ms,
     }
+    
+    # 添加原始请求数据（如果提供）
+    if raw_request:
+        update_data["raw_request"] = raw_request
 
     return classify_repo.update(classification_id, user_id, update_data)
 
@@ -264,11 +363,11 @@ def external_classify():
         # 验证应用类型和发布状态
         if app.app_type != "image_classify":
             raise ValidationException(
-                "该应用密钥不属于图片分类应用"
+                "该应用密钥不属于图片分类应用", PARAMETER_ERROR
             )
 
         if not app.published or not app.published_config:
-            raise ValidationException("该应用未发布配置")
+            raise ValidationException("该应用未发布配置", PARAMETER_ERROR)
 
         # 获取IP和用户代理
         ip_address = request.remote_addr
@@ -299,6 +398,15 @@ def external_classify():
             ip_address=ip_address,
             user_agent=user_agent,
         )
+        
+        # 保存原始请求以便调试
+        raw_request = {
+            "image_url": image_url,
+            "categories": categories,
+            "app_id": app.id,
+            "user_id": user_id,
+            "config": config
+        }
 
         try:
             # 获取用户LLM配置
@@ -313,19 +421,30 @@ def external_classify():
             messages = _prepare_prompts(config, image_url, categories)
 
             # 确定模型名称
-            model_name = _get_model_name()
+            model_name = _get_model_name(config)
 
             # 分类参数
             max_tokens = config.get("max_tokens", 2000)
             temperature = config.get("temperature", 0.2)  # 降低温度增加确定性
+            
+            # 更新原始请求信息
+            raw_request.update({
+                "messages": messages,
+                "model_name": model_name,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "provider_type": user_llm_config.provider_type
+            })
 
             # 调用LLM服务
+            logger.info(f"开始调用图片分类服务: 模型={model_name}, 图片URL={image_url}")
             response = ai_provider.generate_chat_completion(
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 model=model_name,
             )
+            logger.info(f"图片分类调用完成，获取到响应，用时{int((time.time() - start_time) * 1000)}ms")
 
             # 解析分类结果
             content = response["message"]["content"]
@@ -333,9 +452,14 @@ def external_classify():
 
             # 获取tokens使用量
             tokens_used = response.get("usage", {}).get("total_tokens", 0)
+            tokens_prompt = response.get("usage", {}).get("prompt_tokens", 0)
+            tokens_completion = response.get("usage", {}).get("completion_tokens", 0)
 
             # 计算处理时间
             duration_ms = int((time.time() - start_time) * 1000)
+
+            # 获取实际使用的模型（可能与请求的不同）
+            used_model = response.get("model", model_name)
 
             # 更新分类记录
             classification = _update_classification_success(
@@ -348,7 +472,27 @@ def external_classify():
                 reasoning=parsed_result.get("reasoning", ""),
                 tokens_used=tokens_used,
                 duration_ms=duration_ms,
+                provider_type=user_llm_config.provider_type,
+                model_name=used_model,
+                raw_request=raw_request,
+                raw_response=response
             )
+
+            # 创建调试信息对象
+            debug_info = {
+                "provider_type": user_llm_config.provider_type,
+                "requested_model": model_name,
+                "actual_model": used_model,
+                "config_used": config,
+                "tokens": {
+                    "total": tokens_used,
+                    "prompt": tokens_prompt,
+                    "completion": tokens_completion,
+                },
+                "duration_ms": duration_ms,
+                "app_id": app.id,
+                "user_llm_config_id": user_llm_config_id
+            }
 
             # 格式化结果
             result = {
@@ -360,40 +504,60 @@ def external_classify():
                 "tokens_used": classification.tokens_used,
                 "duration_ms": classification.duration_ms,
                 "status": classification.status,
+                "model": used_model,
+                "provider_type": user_llm_config.provider_type,
+                "debug": debug_info  # 添加调试信息
             }
 
             return success_response(result, "图片分类成功")
 
         except Exception as e:
             logger.error(f"Classification error: {str(e)}\n{traceback.format_exc()}")
+            
+            # 提取有用的错误信息
+            error_message = str(e)
+            
+            # 尝试从错误消息中提取有用信息
+            if "url=" in error_message and "Timeout" in error_message:
+                error_message = "下载图片超时，请检查图片URL是否可访问"
+            elif "InvalidParameter" in error_message:
+                error_message = "图片参数无效，请检查图片URL是否可访问或格式是否支持"
+            
             # 更新失败状态
             _update_classification_failure(
                 classify_repo,
                 classification_id=classification.id,
                 user_id=user_id,
-                error_message=str(e),
+                error_message=error_message,
                 duration_ms=int((time.time() - start_time) * 1000),
+                raw_request=raw_request
             )
 
-            # 重新抛出异常
-            if isinstance(e, APIException):
-                raise
-            raise APIException(f"图片分类失败: {str(e)}", CLASSIFICATION_FAILED)
+            # 返回详细的错误信息
+            error_result = {
+                "id": classification.id,
+                "status": "failed",
+                "error_message": error_message,
+                "duration_ms": int((time.time() - start_time) * 1000),
+                "raw_error": str(e)
+            }
+            
+            return success_response(error_result, "图片分类失败")
 
     except ValidationException as e:
         # 参数验证失败
         logger.warning(f"Validation error: {str(e)}")
-        raise
+        raise ValidationException( "参数验证失败")
     except APIException as e:
         # 业务异常
         logger.error(f"API error: {str(e)}")
-        raise
+        raise ValidationException("分类服务异常")
     except Exception as e:
         # 未预期的异常
         logger.error(
             f"Unexpected error in external classify: {str(e)}\n{traceback.format_exc()}"
         )
-        raise APIException(f"图片分类失败: {str(e)}", CLASSIFICATION_FAILED)
+        raise ValidationException("服务器内部错误")
 
 
 @external_image_classify_bp.route("/rate", methods=["POST"])
@@ -407,16 +571,16 @@ def rate_classification():
         # 验证请求数据
         data = request.get_json()
         if not data:
-            raise ValidationException("请求数据不能为空",)
+            raise ValidationException("请求数据不能为空", PARAMETER_ERROR)
 
         # 提取评分参数
         classification_id = data.get("classification_id")
         if not classification_id:
-            raise ValidationException("缺少必填参数: classification_id",)
+            raise ValidationException("缺少必填参数: classification_id", PARAMETER_ERROR)
 
         rating = data.get("rating")
         if not rating or not isinstance(rating, int) or rating < 1 or rating > 5:
-            raise ValidationException("评分必须是1-5之间的整数",)
+            raise ValidationException("评分必须是1-5之间的整数", PARAMETER_ERROR)
 
         feedback = data.get("feedback")
 
@@ -432,11 +596,11 @@ def rate_classification():
         return success_response({"success": True}, "评分提交成功")
 
     except ValidationException as e:
-        raise
+        return success_response({"error_message": str(e)}, "参数验证失败", code=e.code)
     except APIException as e:
-        raise
+        return success_response({"error_message": str(e)}, "评分服务异常", code=e.code)
     except Exception as e:
         logger.error(
             f"Unexpected error in rate classification: {str(e)}\n{traceback.format_exc()}"
         )
-        raise APIException(f"评分提交失败: {str(e)}", CLASSIFICATION_FAILED)
+        return success_response({"error_message": str(e)}, "服务器内部错误", code=CLASSIFICATION_FAILED)

@@ -74,6 +74,10 @@ def app_key_required(f):
         try:
             # 从请求头中获取应用密钥
             app_key = request.headers.get("X-App-Key")
+            print("===== 开始应用密钥认证 =====")
+            print(f"Headers获取是: {request.headers}")
+            print(f"提取的应用密钥头: {app_key}")
+            print(f"提取的应用密钥: {app_key[:15]}...{app_key[-15:]} (仅显示首尾)")
             if not app_key:
                 raise AuthenticationException("缺少应用密钥")
             
