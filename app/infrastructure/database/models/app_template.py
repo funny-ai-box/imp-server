@@ -31,9 +31,9 @@ class AppTemplate(db.Model):
 
     # 系统信息
     is_active = Column(Boolean, default=True, comment="是否启用")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间"
+        DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
 
     def __repr__(self):

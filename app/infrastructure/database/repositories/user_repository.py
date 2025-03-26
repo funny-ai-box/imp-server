@@ -47,7 +47,7 @@ class UserRepository:
             SQLAlchemyError: 数据库操作失败
         """
         try:
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now()
             self.db.commit()
             logger.info(f"Updated user: {user.username}")
             return user

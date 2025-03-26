@@ -64,7 +64,7 @@ class UserAppService:
             "description": template.description,
             "template_id": template.id,
             "app_key": self._generate_app_key(),
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(),
         }
 
         # 合并默认配置和自定义配置
@@ -137,7 +137,7 @@ class UserAppService:
 
         # 设置用户ID和创建时间
         app_data["user_id"] = user_id
-        app_data["created_at"] = datetime.utcnow()
+        app_data["created_at"] = datetime.now()
 
         # 生成应用密钥
         app_data["app_key"] = self._generate_app_key()
@@ -201,7 +201,7 @@ class UserAppService:
             del app_data["published_config"]
 
         # 更新应用
-        app_data["updated_at"] = datetime.utcnow()
+        app_data["updated_at"] = datetime.now()
         app = self.user_app_repo.update(app_id, user_id, app_data)
         return self._format_app(app)
 
@@ -243,14 +243,14 @@ class UserAppService:
             "description": app.description,
             "config": app.config,
             "user_llm_config_id": app.user_llm_config_id,
-            "published_at": datetime.utcnow().isoformat(),
+            "published_at": datetime.now().isoformat(),
         }
 
         # 更新发布状态和配置
         update_data = {
             "published": True,
             "published_config": published_config,
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(),
         }
 
         app = self.user_app_repo.update(app_id, user_id, update_data)
@@ -259,7 +259,7 @@ class UserAppService:
     def unpublish_app(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """取消发布应用"""
         # 更新发布状态
-        update_data = {"published": False, "updated_at": datetime.utcnow()}
+        update_data = {"published": False, "updated_at": datetime.now()}
 
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)
@@ -289,7 +289,7 @@ class UserAppService:
         new_key = self._generate_app_key()
 
         # 更新应用
-        update_data = {"app_key": new_key, "updated_at": datetime.utcnow()}
+        update_data = {"app_key": new_key, "updated_at": datetime.now()}
 
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)

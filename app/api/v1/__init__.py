@@ -9,7 +9,7 @@ from app.api.v1.auth.auth import auth_bp
 
 # 导入基础能力蓝图
 
-from app.api.v1.foundation.llm import llm_providers_bp, llm_models_bp
+from app.api.v1.foundation.llm_provider import llm_provider_bp
 from app.api.v1.foundation.user_llm_config import user_llm_config_bp
 
 # 导入应用相关蓝图
@@ -33,8 +33,7 @@ api_v1_bp.register_blueprint(auth_bp, url_prefix="/auth")
 # 创建并注册基础能力蓝图
 foundation_bp = Blueprint("foundation", __name__, url_prefix="/foundation")
 
-foundation_bp.register_blueprint(llm_providers_bp, url_prefix="/llm_providers")
-foundation_bp.register_blueprint(llm_models_bp, url_prefix="/llm_models")
+foundation_bp.register_blueprint(llm_provider_bp, url_prefix="/llm_provider")
 foundation_bp.register_blueprint(user_llm_config_bp, url_prefix="/user_llm_configs")
 api_v1_bp.register_blueprint(foundation_bp)
 

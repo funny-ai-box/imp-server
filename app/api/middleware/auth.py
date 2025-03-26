@@ -39,14 +39,14 @@ def auth_required(f):
             print("尝试解码令牌...")
             
             # 解码令牌
-            payload = jwt.decode(token, secret_key, algorithms=["HS256"])
+            payload = jwt.decode(token, secret_key, algorithms=["HS256"],leeway=120)
             print(f"令牌解码成功，payload: {payload}")
             
             # 获取用户ID
             user_id = payload.get("sub")
             if not user_id:
                 print("错误: payload中缺少'sub'字段")
-                raise AuthenticationException("无效的令牌")
+                raise AuthenticationException("无效的2令牌")
             
             print(f"从令牌获取的用户ID: {user_id}")
             
@@ -88,7 +88,7 @@ def auth_required(f):
             print(f"错误: 令牌已过期 - {str(e)}")
             raise AuthenticationException("令牌已过期")
         except jwt.InvalidTokenError as e:
-            print(f"错误: 无效的令牌 - {str(e)}")
+            print(f"错误: 无效的令1牌 - {str(e)}")
             raise AuthenticationException("无效的令牌")
         except AuthenticationException:
             # 直接重新抛出认证异常

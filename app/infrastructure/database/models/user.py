@@ -39,9 +39,9 @@ class User(db.Model):
 
     # 系统相关
     last_login_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=datetime.now, onupdate=datetime.now, nullable=False
     )
 
     # API相关

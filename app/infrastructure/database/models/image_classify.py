@@ -29,9 +29,9 @@ class ImageClassification(db.Model):
     duration_ms = Column(Integer, default=0, comment="处理耗时(毫秒)")
 
     # 系统信息
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间"
+        DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
     user_id = Column(String(32), nullable=False, comment="所属用户ID")
 

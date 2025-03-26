@@ -46,9 +46,9 @@ def generate_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = No
     payload = data.copy()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=24)
+        expire = datetime.now() + timedelta(hours=24)
     
     payload.update({"exp": expire})
     

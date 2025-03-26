@@ -11,8 +11,8 @@ Base = declarative_base()
 class TimestampMixin:
     """时间戳混入类，用于记录创建和更新时间"""
     
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
 class ModelBase(Base):
     """模型基类，提供通用功能"""

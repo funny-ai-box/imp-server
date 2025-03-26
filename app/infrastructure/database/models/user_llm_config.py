@@ -41,9 +41,9 @@ class UserLLMConfig(db.Model):
     is_active = Column(Boolean, default=True, comment="是否启用")
     request_timeout = Column(Integer, default=60, comment="请求超时时间(秒)")
     max_retries = Column(Integer, default=3, comment="最大重试次数")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间"
+        DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
     remark = Column(Text, nullable=True, comment="备注")
 

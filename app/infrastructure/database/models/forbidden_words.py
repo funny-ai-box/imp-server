@@ -12,8 +12,8 @@ class ForbiddenWord(db.Model):
     word = Column(String(255), nullable=False, index=True, comment="违禁词")
     application = Column(String(50), nullable=False, index=True, comment="应用场景，如xhs_copy")
     description = Column(Text, nullable=True, comment="描述")
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间")
     created_by = Column(Integer, nullable=True, comment="创建人ID")
     
 

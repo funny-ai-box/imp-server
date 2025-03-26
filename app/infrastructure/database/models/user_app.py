@@ -43,9 +43,9 @@ class UserApp(db.Model):
     is_default = Column(Boolean, default=False, comment="是否为默认应用")
 
     # 时间戳
-    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    created_at = Column(DateTime, default=datetime.now, comment="创建时间")
     updated_at = Column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间"
+        DateTime, default=datetime.now, onupdate=datetime.now, comment="更新时间"
     )
 
     def __repr__(self):

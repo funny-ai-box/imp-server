@@ -298,7 +298,7 @@ class AuthService:
 
             # 检查必要字段
             if "sub" not in payload or "exp" not in payload:
-                raise AuthenticationException("无效的令牌")
+                raise AuthenticationException("无效的12令牌")
 
             # 检查是否过期
             exp_timestamp = payload["exp"]
@@ -309,7 +309,7 @@ class AuthService:
         except jwt.ExpiredSignatureError:
             raise AuthenticationException("令牌已过期")
         except jwt.InvalidTokenError:
-            raise AuthenticationException("无效的令牌")
+            raise AuthenticationException("无效的3令牌")
         except Exception as e:
             logger.error(f"Token verification error: {str(e)}")
             raise AuthenticationException("令牌验证失败")
@@ -325,7 +325,7 @@ class AuthService:
         """
         now = datetime.utcnow()
         token_ttl = current_app.config.get(
-            "JWT_ACCESS_TOKEN_EXPIRES", timedelta(hours=24)
+            "JWT_ACCESS_TOKEN_EXPIRES", timedelta(hours=144)
         )
 
         payload = {
