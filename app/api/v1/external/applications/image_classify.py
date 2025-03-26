@@ -96,6 +96,11 @@ def _get_model_name(config=None):
     # 如果配置中指定了视觉模型，使用配置的模型
     if config and "vision_model_name" in config:
         return config["vision_model_name"]
+    
+    # 如果配置中指定了模型，使用配置的模型
+    if config and "model_name" in config:
+        return config["model_name"]
+        
     # 否则使用默认模型
     return "doubao-1.5-vision-pro-32k-250115"  # 火山引擎视觉模型
 
@@ -383,9 +388,17 @@ def external_classify():
         image_url = data["image_url"]
         categories = data["categories"]
 
-        # 从应用中获取配置和关联的LLM配置
+        # 从应用中获取配置
         config = app.published_config.get("config", {})
-        llm_provider_config_id = app.llm_provider_config_id
+        
+        # 检查config中是否包含provider_type
+        provider_type = config.get("provider_type")
+        if not provider_type:
+            raise ValidationException("应用配置中未指定provider_type", PARAMETER_ERROR)
+            
+        # 目前图片分类仅支持Volcano
+        if provider_type != "Volcano":
+            raise ValidationException("图片分类目前仅支持Volcano提供商", PARAMETER_ERROR)
 
         # 创建分类记录
         start_time = time.time()
@@ -410,9 +423,9 @@ def external_classify():
 
         try:
             # 获取用户LLM配置
-            llm_provider_config = llm_provider_config_repo.get_by_id(
-                llm_provider_config_id, user_id
-            )
+            llm_provider_config = llm_provider_config_repo.get_default(user_id, provider_type)
+            if not llm_provider_config:
+                raise APIException(f"未找到{provider_type}的LLM配置，请先在LLM设置中配置", CLASSIFICATION_FAILED)
 
             # 创建LLM提供商实例
             ai_provider = _create_llm_provider(llm_provider_config)
@@ -433,7 +446,7 @@ def external_classify():
                 "model_name": model_name,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "provider_type": llm_provider_config.provider_type
+                "provider_type": provider_type
             })
 
             # 调用LLM服务
@@ -472,7 +485,7 @@ def external_classify():
                 reasoning=parsed_result.get("reasoning", ""),
                 tokens_used=tokens_used,
                 duration_ms=duration_ms,
-                provider_type=llm_provider_config.provider_type,
+                provider_type=provider_type,
                 model_name=used_model,
                 raw_request=raw_request,
                 raw_response=response
@@ -480,7 +493,7 @@ def external_classify():
 
             # 创建调试信息对象
             debug_info = {
-                "provider_type": llm_provider_config.provider_type,
+                "provider_type": provider_type,
                 "requested_model": model_name,
                 "actual_model": used_model,
                 "config_used": config,
@@ -490,8 +503,7 @@ def external_classify():
                     "completion": tokens_completion,
                 },
                 "duration_ms": duration_ms,
-                "app_id": app.id,
-                "llm_provider_config_id": llm_provider_config_id
+                "app_id": app.id
             }
 
             # 格式化结果
@@ -505,7 +517,7 @@ def external_classify():
                 "duration_ms": classification.duration_ms,
                 "status": classification.status,
                 "model": used_model,
-                "provider_type": llm_provider_config.provider_type,
+                "provider_type": provider_type,
                 "debug": debug_info  # 添加调试信息
             }
 
@@ -547,11 +559,11 @@ def external_classify():
     except ValidationException as e:
         # 参数验证失败
         logger.warning(f"Validation error: {str(e)}")
-        raise ValidationException( "参数验证失败")
+        raise ValidationException(str(e))
     except APIException as e:
         # 业务异常
         logger.error(f"API error: {str(e)}")
-        raise ValidationException("分类服务异常")
+        raise ValidationException(str(e))
     except Exception as e:
         # 未预期的异常
         logger.error(

@@ -50,7 +50,7 @@ class ImageClassifyService:
         self.user_app_repo = user_app_repository
         self.provider_repo = provider_repository
         self.model_repo = model_repository
-        self.llm_provider_config_repository = llm_provider_config_repository
+        self.llm_provider_config_repo = llm_provider_config_repository
 
     def get_all_classifications(
         self, user_id: str, page: int = 1, per_page: int = 20, **filters
@@ -103,15 +103,24 @@ class ImageClassifyService:
         )
 
         try:
+            # 检查配置中是否包含provider_type
+            provider_type = config.get("provider_type")
+            if not provider_type:
+                raise ValidationException("应用配置中未指定provider_type")
+                
+            # 目前图片分类只支持Volcano提供商
+            if provider_type != "Volcano":
+                raise ValidationException("图片分类目前仅支持Volcano提供商", CLASSIFICATION_FAILED)
+
             # 获取LLM服务
-            ai_provider = self._get_llm_provider(app, user_id)
+            llm_provider_config = self._get_llm_provider_config(provider_type, user_id)
+            ai_provider = self._create_llm_provider(llm_provider_config)
 
             # 准备提示词
             messages = self._prepare_prompts(config, image_url, categories)
 
             # 获取模型名称
-            provider_type = self._get_provider_type(app, user_id)
-            model_name = self._get_model_name(provider_type)
+            model_name = self._get_model_name(config)
 
             # 生成分类结果
             max_tokens = config.get("max_tokens", 2000)
@@ -146,6 +155,8 @@ class ImageClassifyService:
                 parsed_result.get("reasoning", ""),
                 tokens_used,
                 duration_ms,
+                provider_type,
+                model_name
             )
 
             return self._format_classification(updated_classification)
@@ -181,6 +192,9 @@ class ImageClassifyService:
 
     def _get_classification_app(self, app_id: Optional[str], user_id: str):
         """获取分类应用配置"""
+        if not self.user_app_repo:
+            raise APIException("未配置应用存储库", CLASSIFICATION_FAILED)
+            
         # 如果没有指定应用ID，使用默认应用
         if not app_id:
             default_app = self.user_app_repo.get_default_by_type(user_id, "image_classify")
@@ -207,63 +221,59 @@ class ImageClassifyService:
             "status": "processing",
         }
         return self.classify_repo.create(record_data)
-
-    def _get_provider_type(self, app, user_id):
-        """获取提供商类型"""
-        # 验证用户LLM配置
-        if not app.llm_provider_config_id or not self.llm_provider_config_repository:
-            raise APIException(
-                "未配置LLM服务，请先为应用绑定LLM配置", CLASSIFICATION_FAILED
+    
+    def _get_llm_provider_config(self, provider_type: str, user_id: str):
+        """获取用户的LLM提供商配置"""
+        if not self.llm_provider_config_repo:
+            raise APIException("未配置LLM提供商存储库", CLASSIFICATION_FAILED)
+            
+        # 根据provider_type获取用户的默认配置
+        llm_config = self.llm_provider_config_repo.get_default(user_id, provider_type)
+        if not llm_config:
+            raise NotFoundException(
+                f"未找到{provider_type}的LLM配置，请先在LLM设置中配置", CLASSIFICATION_FAILED
             )
+            
+        # 检查配置是否激活
+        if not llm_config.is_active:
+            raise ValidationException(f"{provider_type}配置未激活", CLASSIFICATION_FAILED)
+            
+        return llm_config
 
-        try:
-            llm_provider_config = self.llm_provider_config_repository.get_by_id(
-                app.llm_provider_config_id, user_id
-            )
-            return llm_provider_config.provider_type
-        except Exception as e:
-            raise APIException(f"无法获取LLM配置: {str(e)}", CLASSIFICATION_FAILED)
-
-    def _get_llm_provider(self, app, user_id):
-        """获取LLM服务提供商"""
-        # 验证用户LLM配置
-        if not app.llm_provider_config_id:
-            raise APIException(
-                "未配置LLM服务，请先为应用绑定LLM配置", CLASSIFICATION_FAILED
-            )
-
-        if not self.llm_provider_config_repository:
-            raise APIException("系统未配置LLM服务接口", CLASSIFICATION_FAILED)
-
-        try:
-            llm_provider_config = self.llm_provider_config_repository.get_by_id(
-                app.llm_provider_config_id, user_id
-            )
-        except Exception as e:
-            raise APIException(f"无法获取LLM配置: {str(e)}", CLASSIFICATION_FAILED)
-
-        # 创建AI提供商实例
+    def _create_llm_provider(self, llm_provider_config):
+        """根据配置创建LLM提供商实例"""
         provider_type = llm_provider_config.provider_type
 
-        if provider_type == "Volcano":
-            if not llm_provider_config.api_key:
-                raise APIException(
-                    "您尚未配置火山引擎API密钥，请先在LLM配置中设置API密钥",
-                    CLASSIFICATION_FAILED,
-                )
+        try:
+            if provider_type == "Volcano":
+                if not llm_provider_config.api_key:
+                    raise APIException(
+                        "您尚未配置火山引擎API密钥", CLASSIFICATION_FAILED
+                    )
 
-            return LLMProviderFactory.create_provider(
-                "volcano",
-                llm_provider_config.api_key,
-                api_base_url=llm_provider_config.api_base_url,
-                api_version=llm_provider_config.api_version,
-                timeout=llm_provider_config.request_timeout,
-                max_retries=llm_provider_config.max_retries,
-            )
-        else:
-            raise APIException(
-                f"图片分类仅支持Volcano提供商，当前配置: {provider_type}", CLASSIFICATION_FAILED
-            )
+                # 火山引擎可能需要额外的配置项
+                config = {
+                    "timeout": llm_provider_config.request_timeout,
+                    "max_retries": llm_provider_config.max_retries,
+                }
+
+                # 添加应用ID和密钥（如果有）
+                if llm_provider_config.app_id:
+                    config["app_id"] = llm_provider_config.app_id
+                if llm_provider_config.app_secret:
+                    config["app_secret"] = llm_provider_config.app_secret
+
+                return LLMProviderFactory.create_provider(
+                    "volcano", llm_provider_config.api_key, **config
+                )
+            else:
+                # 目前图片分类只支持Volcano
+                raise APIException(
+                    f"图片分类不支持的LLM提供商类型: {provider_type}", CLASSIFICATION_FAILED
+                )
+        except Exception as e:
+            logger.error(f"Failed to create LLM provider: {str(e)}")
+            raise APIException(f"创建LLM提供商失败: {str(e)}", CLASSIFICATION_FAILED)
 
     def _prepare_prompts(self, config, image_url, categories):
         """准备提示词"""
@@ -279,26 +289,26 @@ class ImageClassifyService:
         # 用户提示词
         user_prompt = f"""请分析下面这张图片，并判断它应该属于以下哪个分类：
 
-    {categories_text}
+        {categories_text}
 
-    请仔细分析图片内容，并给出你的分类结果和推理过程。
-    你的回答必须是以下JSON格式：
-    {{
-    "category_id": "分类ID",
-    "category_name": "分类名称",
-    "confidence": 0.95,
-    "reasoning": "这里是你对分类的推理过程"
-    }}
+        请仔细分析图片内容，并给出你的分类结果和推理过程。
+        你的回答必须是以下JSON格式：
+        {{
+        "category_id": "分类ID",
+        "category_name": "分类名称",
+        "confidence": 0.95,
+        "reasoning": "这里是你对分类的推理过程"
+        }}
 
-    只能选择一个最匹配的分类。如果图片内容不清晰、信息值低或不属于任何一个给定分类，请返回以下JSON格式：
-    {{
-    "category_id": null,
-    "category_name": null,
-    "confidence": 0,
-    "reasoning": "这里说明为什么无法对图片进行分类的原因"
-    }}
+        只能选择一个最匹配的分类。如果图片内容不清晰、信息值低或不属于任何一个给定分类，请返回以下JSON格式：
+        {{
+        "category_id": null,
+        "category_name": null,
+        "confidence": 0,
+        "reasoning": "这里说明为什么无法对图片进行分类的原因"
+        }}
 
-    置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类或无法分类的原因。"""
+        置信度为0-1之间的小数，推理过程需要详细说明为什么图片属于该分类或无法分类的原因。"""
 
         # 构建消息
         messages = [
@@ -314,12 +324,17 @@ class ImageClassifyService:
 
         return messages
 
-    def _get_model_name(self, provider_type):
-        """获取模型名称"""
-        if provider_type == "Volcano":
-            return "doubao-1.5-vision-pro-32k-250115"  # 火山引擎视觉模型
-        else:
-            raise APIException(f"不支持的提供商类型: {provider_type}", CLASSIFICATION_FAILED)
+    def _get_model_name(self, config):
+        """获取模型名称，优先使用配置的模型"""
+        # 从应用配置中获取模型名称
+        model_name = config.get("model_name") or config.get("vision_model_name")
+        
+        # 如果配置中指定了模型，使用配置的模型
+        if model_name:
+            return model_name
+        
+        # 否则使用默认模型
+        return "doubao-1.5-vision-pro-32k-250115"  # 默认火山引擎视觉模型
 
     def _call_llm_service(self, ai_provider, messages, model, max_tokens, temperature):
         """调用LLM服务"""
@@ -449,8 +464,8 @@ class ImageClassifyService:
         }
 
     def _update_classification_success(
-    self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms
-):
+        self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms, provider_type, model_name
+    ):
         """更新分类成功状态，支持无法分类的情况"""
         status = "completed" if category_id is not None else "unclassified"
         
@@ -462,6 +477,8 @@ class ImageClassifyService:
             "reasoning": reasoning,
             "tokens_used": tokens_used,
             "duration_ms": duration_ms,
+            "provider_type": provider_type,
+            "model_name": model_name
         }
 
         return self.classify_repo.update(classification_id, user_id, update_data)
@@ -478,7 +495,6 @@ class ImageClassifyService:
 
         return self.classify_repo.update(classification_id, user_id, update_data)
 
-
     def _format_classification(self, record) -> Dict[str, Any]:
         """格式化分类记录数据"""
         return {
@@ -493,6 +509,8 @@ class ImageClassifyService:
             "status": record.status,
             "error_message": record.error_message,
             "tokens_used": record.tokens_used,
+            "provider_type": record.provider_type,
+            "model_name": record.model_name,
             "duration_ms": record.duration_ms,
             "ip_address": record.ip_address,
             "user_rating": record.user_rating,

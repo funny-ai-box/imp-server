@@ -33,9 +33,6 @@ class UserApp(db.Model):
     # 应用配置 - 使用JSON存储所有特定应用类型的配置参数
     config = Column(JSON, nullable=True, comment="应用配置")
 
-    # 用户LLM配置关联
-    llm_provider_config_id = Column(Integer, nullable=True, comment="用户LLM配置ID")
-
     # 应用密钥和状态
     app_key = Column(String(64), nullable=False, unique=True, comment="应用唯一标识")
     published = Column(Boolean, default=False, comment="是否已发布")

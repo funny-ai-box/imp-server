@@ -36,9 +36,9 @@ class XhsCopyGenerationService:
     def __init__(
         self,
         generation_repository: XhsCopyGenerationRepository,
-        user_app_repository: UserAppRepository,
-        provider_repository: LLMProviderRepository,
-        model_repository: LLMModelRepository,
+        user_app_repository: Optional[UserAppRepository] = None,
+        provider_repository: Optional[LLMProviderRepository] = None,
+        model_repository: Optional[LLMModelRepository] = None,
         llm_provider_config_repository: Optional[LLMProviderConfigRepository] = None,
     ):
         """初始化服务"""
@@ -46,7 +46,7 @@ class XhsCopyGenerationService:
         self.user_app_repo = user_app_repository
         self.provider_repo = provider_repository
         self.model_repo = model_repository
-        self.llm_provider_config_repository = llm_provider_config_repository
+        self.llm_provider_config_repo = llm_provider_config_repository
 
     def get_all_generations(
         self, user_id: str, page: int = 1, per_page: int = 20, **filters
@@ -99,11 +99,14 @@ class XhsCopyGenerationService:
         )
 
         try:
+            # 检查配置中是否包含provider_type
+            provider_type = config.get("provider_type")
+            if not provider_type:
+                raise ValidationException("应用配置中未指定provider_type")
+
             # 获取LLM服务
-            ai_provider = self._get_llm_provider(app, user_id)
-            llm_provider_config = self.llm_provider_config_repository.get_by_id(
-    app.llm_provider_config_id, user_id
-)
+            llm_provider_config = self._get_llm_provider_config(provider_type, user_id)
+            ai_provider = self._create_llm_provider(llm_provider_config)
 
             # 准备提示词
             messages = self._prepare_prompts(config, prompt, image_urls)
@@ -111,8 +114,7 @@ class XhsCopyGenerationService:
             has_images = bool(image_urls) and len(image_urls) > 0
 
             # 获取模型名称
-            provider_type = self._get_provider_type(app, user_id)
-            model_name = self._get_model_name(app, llm_provider_config, has_images)
+            model_name = self._get_model_name(config, provider_type, has_images)
 
             # 生成文案
             max_tokens = config.get("max_tokens", 800)
@@ -146,6 +148,10 @@ class XhsCopyGenerationService:
                 parsed_result["tags"],
                 tokens_used,
                 duration_ms,
+                provider_type,
+                model_name,
+                temperature,
+                max_tokens,
             )
 
             return self._format_generation(updated_generation)
@@ -175,6 +181,9 @@ class XhsCopyGenerationService:
 
     def _get_generation_app(self, app_id: Optional[str], user_id: str):
         """获取生成应用配置"""
+        if not self.user_app_repo:
+            raise APIException("未配置应用存储库", GENERATION_FAILED)
+            
         # 如果没有指定应用ID，使用默认应用
         if not app_id:
             default_app = self.user_app_repo.get_default_by_type(user_id, "xhs_copy")
@@ -202,98 +211,84 @@ class XhsCopyGenerationService:
         }
         return self.generation_repo.create(generation_data)
 
-    def _get_provider_type(self, app, user_id):
-        """获取提供商类型"""
-        # 验证用户LLM配置
-        if not app.llm_provider_config_id or not self.llm_provider_config_repository:
-            raise APIException(
-                "未配置LLM服务，请先为应用绑定LLM配置", GENERATION_FAILED
+    def _get_llm_provider_config(self, provider_type: str, user_id: str):
+        """获取用户的LLM提供商配置"""
+        if not self.llm_provider_config_repo:
+            raise APIException("未配置LLM提供商存储库", GENERATION_FAILED)
+            
+        # 根据provider_type获取用户的默认配置
+        llm_config = self.llm_provider_config_repo.get_default(user_id, provider_type)
+        if not llm_config:
+            raise NotFoundException(
+                f"未找到{provider_type}的LLM配置，请先在LLM设置中配置", GENERATION_FAILED
             )
+            
+        # 检查配置是否激活
+        if not llm_config.is_active:
+            raise ValidationException(f"{provider_type}配置未激活", GENERATION_FAILED)
+            
+        return llm_config
 
-        try:
-            llm_provider_config = self.llm_provider_config_repository.get_by_id(
-                app.llm_provider_config_id, user_id
-            )
-            return llm_provider_config.provider_type
-        except Exception as e:
-            raise APIException(f"无法获取LLM配置: {str(e)}", GENERATION_FAILED)
-
-    def _get_llm_provider(self, app, user_id):
-        """获取LLM服务提供商"""
-        # 验证用户LLM配置
-        if not app.llm_provider_config_id:
-            raise APIException(
-                "未配置LLM服务，请先为应用绑定LLM配置", GENERATION_FAILED
-            )
-
-        if not self.llm_provider_config_repository:
-            raise APIException("系统未配置LLM服务接口", GENERATION_FAILED)
-
-        try:
-            llm_provider_config = self.llm_provider_config_repository.get_by_id(
-                app.llm_provider_config_id, user_id
-            )
-        except Exception as e:
-            raise APIException(f"无法获取LLM配置: {str(e)}", GENERATION_FAILED)
-
-        # 创建AI提供商实例
+    def _create_llm_provider(self, llm_provider_config):
+        """根据配置创建LLM提供商实例"""
         provider_type = llm_provider_config.provider_type
 
-        if provider_type == "OpenAI":
-            if not llm_provider_config.api_key:
-                raise APIException(
-                    "您尚未配置OpenAI API密钥，请先在LLM配置中设置API密钥",
-                    GENERATION_FAILED,
+        try:
+            if provider_type == "OpenAI":
+                if not llm_provider_config.api_key:
+                    raise APIException(
+                        "您尚未配置OpenAI API密钥", GENERATION_FAILED
+                    )
+
+                return LLMProviderFactory.create_provider(
+                    "openai",
+                    llm_provider_config.api_key,
+                    api_base_url=llm_provider_config.api_base_url,
+                    api_version=llm_provider_config.api_version,
+                    timeout=llm_provider_config.request_timeout,
+                    max_retries=llm_provider_config.max_retries,
                 )
+            elif provider_type == "Claude":
+                if not llm_provider_config.api_key:
+                    raise APIException(
+                        "您尚未配置Claude API密钥", GENERATION_FAILED
+                    )
 
-            return LLMProviderFactory.create_provider(
-                "openai",
-                llm_provider_config.api_key,
-                api_base_url=llm_provider_config.api_base_url,
-                api_version=llm_provider_config.api_version,
-                timeout=llm_provider_config.request_timeout,
-                max_retries=llm_provider_config.max_retries,
-            )
-        elif provider_type == "Claude":
-            if not llm_provider_config.api_key:
-                raise APIException(
-                    "您尚未配置Claude API密钥，请先在LLM配置中设置API密钥",
-                    GENERATION_FAILED,
+                return LLMProviderFactory.create_provider(
+                    "anthropic",
+                    llm_provider_config.api_key,
+                    api_base_url=llm_provider_config.api_base_url,
+                    timeout=llm_provider_config.request_timeout,
+                    max_retries=llm_provider_config.max_retries,
                 )
+            elif provider_type == "Volcano":
+                if not llm_provider_config.api_key:
+                    raise APIException(
+                        "您尚未配置火山引擎API密钥", GENERATION_FAILED
+                    )
 
-            return LLMProviderFactory.create_provider(
-                "anthropic",
-                llm_provider_config.api_key,
-                api_base_url=llm_provider_config.api_base_url,
-                timeout=llm_provider_config.request_timeout,
-                max_retries=llm_provider_config.max_retries,
-            )
-        elif provider_type == "Volcano":
-            if not llm_provider_config.api_key:
-                raise APIException(
-                    "您尚未配置火山引擎API密钥，请先在LLM配置中设置API密钥",
-                    GENERATION_FAILED,
+                # 火山引擎可能需要额外的配置项
+                config = {
+                    "timeout": llm_provider_config.request_timeout,
+                    "max_retries": llm_provider_config.max_retries,
+                }
+
+                # 添加应用ID和密钥（如果有）
+                if llm_provider_config.app_id:
+                    config["app_id"] = llm_provider_config.app_id
+                if llm_provider_config.app_secret:
+                    config["app_secret"] = llm_provider_config.app_secret
+
+                return LLMProviderFactory.create_provider(
+                    "volcano", llm_provider_config.api_key, **config
                 )
-
-            # 火山引擎可能需要额外的配置项
-            config = {
-                "timeout": llm_provider_config.request_timeout,
-                "max_retries": llm_provider_config.max_retries,
-            }
-
-            # 添加应用ID和密钥（如果有）
-            if llm_provider_config.app_id:
-                config["app_id"] = llm_provider_config.app_id
-            if llm_provider_config.app_secret:
-                config["app_secret"] = llm_provider_config.app_secret
-
-            return LLMProviderFactory.create_provider(
-                "volcano", llm_provider_config.api_key, **config
-            )
-        else:
-            raise APIException(
-                f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED
-            )
+            else:
+                raise APIException(
+                    f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED
+                )
+        except Exception as e:
+            logger.error(f"Failed to create LLM provider: {str(e)}")
+            raise APIException(f"创建LLM提供商失败: {str(e)}", GENERATION_FAILED)
 
     def _prepare_prompts(self, config, prompt, image_urls):
         """准备提示词"""
@@ -313,8 +308,6 @@ class XhsCopyGenerationService:
             user_prompt = user_prompt.replace("{prompt}", prompt)
         else:
             user_prompt = f"{user_prompt}\n\n{prompt}"
-
-        
 
         # 添加配置要求
         requirements = "\n\n请按以下要求生成文案："
@@ -351,33 +344,18 @@ class XhsCopyGenerationService:
 
         return messages
 
-    def _get_model_name(self, app, llm_provider_config, has_images=False):
-        """
-        获取模型名称，优先使用用户配置的模型
-        
-        Args:
-            app: 应用对象，包含配置信息
-            llm_provider_config: 用户LLM配置
-            has_images: 是否有图片输入
-            
-        Returns:
-            模型名称
-        """
-        # 首先检查应用配置中是否指定了模型
-        provider_type = llm_provider_config.provider_type
-        
+    def _get_model_name(self, config, provider_type, has_images=False):
+        """获取模型名称，优先使用配置的模型"""
         # 从应用配置中获取模型名称
-        model_name = None
-        if app.config and "model_name" in app.config:
-            model_name = app.config.get("model_name")
-            
+        model_name = config.get("model_name")
+        
         # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
         if has_images and provider_type == "Volcano":
-            vision_model_name = app.config.get("vision_model_name")
+            vision_model_name = config.get("vision_model_name")
             if vision_model_name:
                 return vision_model_name
         
-        # 如果用户指定了模型，使用用户指定的
+        # 如果配置中指定了模型，使用配置的模型
         if model_name:
             return model_name
         
@@ -464,28 +442,23 @@ class XhsCopyGenerationService:
         return {"title": title, "body": body, "tags": tags}
 
     def _update_generation_success(
-    generation_repo,
-    generation_id,
-    user_id,
-    title,
-    content,
-    tags,
-    tokens_used,
-    tokens_prompt,
-    tokens_completion,
-    duration_ms,
-    provider_type,
-    model_name,
-    temperature,
-    max_tokens,
-    llm_provider_config_id,
-    contains_forbidden_words=False,
-    detected_forbidden_words=None,
-    estimated_cost=0.0,
-    raw_request=None,
-    raw_response=None
-):
+        self,
+        generation_id,
+        user_id,
+        title,
+        content,
+        tags,
+        tokens_used,
+        duration_ms,
+        provider_type,
+        model_name,
+        temperature,
+        max_tokens,
+    ):
         """更新生成成功状态"""
+        tokens_prompt = 0  # 这些信息可能从响应中获取
+        tokens_completion = 0
+        
         update_data = {
             "status": "completed",
             "title": title,
@@ -498,16 +471,10 @@ class XhsCopyGenerationService:
             "provider_type": provider_type,
             "model_name": model_name,
             "temperature": temperature,
-            "max_tokens": max_tokens,
-            "llm_provider_config_id": llm_provider_config_id,
-            "contains_forbidden_words": contains_forbidden_words,
-            "detected_forbidden_words": detected_forbidden_words or [],
-            "estimated_cost": estimated_cost,
-            "raw_request": raw_request,
-            "raw_response": raw_response
+            "max_tokens": max_tokens
         }
 
-        return generation_repo.update(generation_id, user_id, update_data)
+        return self.generation_repo.update(generation_id, user_id, update_data)
 
     def _update_generation_failure(
         self, generation_id, user_id, error_message, duration_ms
@@ -539,6 +506,8 @@ class XhsCopyGenerationService:
             "status": generation.status,
             "error_message": generation.error_message,
             "tokens_used": generation.tokens_used,
+            "provider_type": generation.provider_type,
+            "model_name": generation.model_name,
             "duration_ms": generation.duration_ms,
             "ip_address": generation.ip_address,
             "user_rating": generation.user_rating,

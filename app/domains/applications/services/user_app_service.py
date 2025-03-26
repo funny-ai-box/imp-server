@@ -116,25 +116,6 @@ class UserAppService:
         # 验证数据
         self._validate_app_data(app_data)
 
-        # 验证LLM配置
-        if (
-            "llm_provider_config_id" in app_data
-            and app_data["llm_provider_config_id"]
-            and self.llm_provider_config_repository
-        ):
-            try:
-                llm_config = self.llm_provider_config_repository.get_by_id(
-                    app_data["llm_provider_config_id"], user_id
-                )
-                # 验证LLM配置是否有效
-                if not llm_config.is_active:
-                    raise ValidationException("选择的LLM配置未激活", PARAMETER_ERROR)
-            except Exception as e:
-                logger.error(f"LLM config validation error: {str(e)}")
-                raise ValidationException(
-                    f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR
-                )
-
         # 设置用户ID和创建时间
         app_data["user_id"] = user_id
         app_data["created_at"] = datetime.now()
@@ -168,28 +149,6 @@ class UserAppService:
         if app_data:
             self._validate_app_data(app_data, is_update=True)
 
-        # 验证LLM配置
-        if (
-            "llm_provider_config_id" in app_data
-            and app_data["llm_provider_config_id"]
-            and self.llm_provider_config_repository
-        ):
-            try:
-                llm_config = self.llm_provider_config_repository.get_by_id(
-                    app_data["llm_provider_config_id"], user_id
-                )
-                # 验证LLM配置是否有效
-                if not llm_config.is_active:
-                    raise ValidationException("选择的LLM配置未激活", PARAMETER_ERROR)
-            except NotFoundException:
-                raise ValidationException(
-                    "指定的LLM配置不存在或不属于当前用户", PARAMETER_ERROR
-                )
-            except Exception as e:
-                raise ValidationException(
-                    f"指定的LLM配置无效: {str(e)}", PARAMETER_ERROR
-                )
-
         # 禁止更新用户ID、应用密钥和发布状态
         if "user_id" in app_data:
             del app_data["user_id"]
@@ -210,28 +169,32 @@ class UserAppService:
         # 获取当前应用
         app = self.user_app_repo.get_by_app_id(app_id, user_id)
 
-        # 验证应用配置中包含必要的大模型设置
+        # 验证应用配置中包含必要的设置
         if not app.config:
             raise ValidationException("应用配置不能为空")
 
-        # 如果有关联的LLM配置，验证该配置是否有效
-        llm_provider_config_id = app.llm_provider_config_id
-        print("llm_provider_config_id", llm_provider_config_id)
-        if llm_provider_config_id and self.llm_provider_config_repository:
+        # 检查配置中是否包含provider_type
+        if not app.config.get("provider_type"):
+            raise ValidationException("应用配置中必须指定provider_type")
+
+        # 检查用户是否配置了相应的LLM提供商
+        provider_type = app.config.get("provider_type")
+        if self.llm_provider_config_repository:
             try:
-                llm_provider_config = self.llm_provider_config_repository.get_by_id(
-                    llm_provider_config_id, user_id
+                # 通过用户ID和提供商类型查找配置
+                llm_provider_config = self.llm_provider_config_repository.get_default(
+                    user_id, provider_type
                 )
+                if not llm_provider_config:
+                    raise NotFoundException(f"未找到{provider_type}的LLM配置")
                 if not llm_provider_config.is_active:
-                    raise ValidationException(
-                        "关联的LLM配置未激活，无法发布"
-                    )
-            except NotFoundException:
-                raise ValidationException(
-                    "关联的LLM配置不存在，无法发布"
-                )
+                    raise ValidationException(f"{provider_type}配置未激活，无法发布")
+            except Exception as e:
+                if isinstance(e, (ValidationException, NotFoundException)):
+                    raise
+                raise ValidationException(f"验证LLM配置失败: {str(e)}")
         else:
-            raise ValidationException("未关联LLM配置，无法发布")
+            logger.warning("未提供LLM配置存储库，跳过LLM配置验证")
 
         # 根据应用类型验证必要配置
         self._validate_app_config_by_type(app.app_type, app.config)
@@ -242,7 +205,6 @@ class UserAppService:
             "name": app.name,
             "description": app.description,
             "config": app.config,
-            "llm_provider_config_id": app.llm_provider_config_id,
             "published_at": datetime.now().isoformat(),
         }
 
@@ -308,7 +270,7 @@ class UserAppService:
 
         # 应用类型验证
         if "app_type" in data:
-            valid_types = ["xhs_copy"]  # 后续可以添加更多支持的类型
+            valid_types = ["xhs_copy", "image_classify"]  # 支持的应用类型
             if data["app_type"] not in valid_types:
                 raise ValidationException(
                     f"无效的应用类型: {data['app_type']}，有效类型: {', '.join(valid_types)}",
@@ -317,6 +279,19 @@ class UserAppService:
 
         # 如果包含配置数据，验证配置
         if "config" in data and data["config"]:
+            # 验证provider_type
+            if "provider_type" in data["config"]:
+                valid_providers = ["OpenAI", "Claude", "Volcano"]  # 支持的提供商类型
+                if data["config"]["provider_type"] not in valid_providers:
+                    raise ValidationException(
+                        f"无效的提供商类型: {data['config']['provider_type']}，有效类型: {', '.join(valid_providers)}",
+                        PARAMETER_ERROR,
+                    )
+            elif not is_update:
+                # 新建应用时必须指定provider_type
+                raise ValidationException("config中必须包含provider_type字段", PARAMETER_ERROR)
+                
+            # 验证应用特定配置
             app_type = data.get("app_type")
             if not app_type and is_update:
                 # 更新操作中可能没有app_type，此时需要从数据库获取
@@ -332,11 +307,14 @@ class UserAppService:
         if app_type == "xhs_copy":
             # 验证小红书文案生成应用配置
             self._validate_xhs_copy_config(config)
+        elif app_type == "image_classify":
+            # 验证图片分类应用配置
+            self._validate_image_classify_config(config)
 
     def _validate_xhs_copy_config(self, config: Dict[str, Any]) -> None:
         """验证小红书文案生成应用配置"""
         # 验证必要字段
-        required_fields = ["system_prompt", "user_prompt_template"]
+        required_fields = ["system_prompt", "user_prompt_template", "provider_type"]
         missing_fields = [field for field in required_fields if field not in config]
 
         if missing_fields:
@@ -381,6 +359,27 @@ class UserAppService:
         # 验证视觉模型名称（可选）
         if "vision_model_name" in config and not isinstance(config["vision_model_name"], str):
             raise ValidationException("vision_model_name必须是字符串", PARAMETER_ERROR)
+            
+    def _validate_image_classify_config(self, config: Dict[str, Any]) -> None:
+        """验证图片分类应用配置"""
+        # 验证必要字段
+        required_fields = ["system_prompt", "provider_type"]
+        missing_fields = [field for field in required_fields if field not in config]
+
+        if missing_fields:
+            raise ValidationException(
+                f"缺少必要的配置字段: {', '.join(missing_fields)}", PARAMETER_ERROR
+            )
+            
+        # 验证provider_type是否为Volcano (目前图片分类仅支持Volcano)
+        if config["provider_type"] != "Volcano":
+            raise ValidationException("图片分类应用目前仅支持Volcano提供商", PARAMETER_ERROR)
+            
+        # 验证温度参数
+        if "temperature" in config:
+            temp = config["temperature"]
+            if not isinstance(temp, (int, float)) or temp < 0 or temp > 1:
+                raise ValidationException("temperature必须在0-1之间", PARAMETER_ERROR)
 
     def _generate_app_key(self) -> str:
         """生成应用密钥"""
@@ -394,7 +393,6 @@ class UserAppService:
             "app_type": app.app_type,
             "description": app.description,
             "config": app.config,
-            "llm_provider_config_id": app.llm_provider_config_id,
             "app_key": app.app_key,
             "published": app.published,
             "is_default": app.is_default,
@@ -409,15 +407,8 @@ class UserAppService:
             if "published_at" in app.published_config:
                 result["published_at"] = app.published_config["published_at"]
 
-        # 添加LLM配置名称（如果可用）
-        if app.llm_provider_config_id and self.llm_provider_config_repository:
-            try:
-                llm_config = self.llm_provider_config_repository.get_by_id(
-                    app.llm_provider_config_id, app.user_id
-                )
-                result["llm_config_name"] = llm_config.name
-                result["llm_provider_type"] = llm_config.provider_type
-            except Exception as e:
-                logger.error(f"Error fetching LLM config details: {str(e)}")
-
+        # 添加提供商类型信息
+        if app.config and "provider_type" in app.config:
+            result["provider_type"] = app.config["provider_type"]
+        
         return result

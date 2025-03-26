@@ -70,7 +70,7 @@ def _create_llm_provider(llm_provider_config):
                 raise APIException("您尚未配置OpenAI API密钥", GENERATION_FAILED)
                 
             # 记录连接尝试（用于调试）
-            print(f"正在尝试连接到OpenAI，基础URL为: {llm_provider_config.api_base_url}")
+            logger.info(f"正在尝试连接到OpenAI，基础URL为: {llm_provider_config.api_base_url}")
             
             return LLMProviderFactory.create_provider(
                 "openai",
@@ -84,7 +84,7 @@ def _create_llm_provider(llm_provider_config):
             if not llm_provider_config.api_key:
                 raise APIException("您尚未配置Claude API密钥", GENERATION_FAILED)
             
-            print(f"正在尝试连接到Claude，基础URL为: {llm_provider_config.api_base_url}")
+            logger.info(f"正在尝试连接到Claude，基础URL为: {llm_provider_config.api_base_url}")
             
             return LLMProviderFactory.create_provider(
                 "anthropic",
@@ -97,7 +97,7 @@ def _create_llm_provider(llm_provider_config):
             if not llm_provider_config.api_key:
                 raise APIException("您尚未配置火山引擎API密钥", GENERATION_FAILED)
             
-            print(f"正在尝试连接到火山引擎")
+            logger.info(f"正在尝试连接到火山引擎")
             
             # 火山引擎可能需要额外的配置项
             config = {
@@ -117,11 +117,9 @@ def _create_llm_provider(llm_provider_config):
         else:
             raise APIException(f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED)
     except Exception as e:
-        print(f"创建LLM提供商失败: {str(e)}")
-        print(f"详细错误: {traceback.format_exc()}")
+        logger.error(f"创建LLM提供商失败: {str(e)}")
+        logger.error(f"详细错误: {traceback.format_exc()}")
         raise APIException(f"创建LLM提供商失败: {str(e)}", GENERATION_FAILED)
-
-
 
 
 def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
@@ -151,11 +149,11 @@ def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
 
     # 添加配置要求
     requirements = "\n\n请按以下要求生成文案："
-    # requirements += f"\n1. 标题长度不超过{config.get('title_length', 50)}个字"
-    # requirements += f"\n2. 正文内容{config.get('content_length', 300)}字左右"
+    requirements += f"\n1. 标题长度不超过{config.get('title_length', 50)}个字"
+    requirements += f"\n2. 正文内容{config.get('content_length', 300)}字左右"
     requirements += f"\n3. 生成{config.get('tags_count', 5)}个适合的标签"
-    # if config.get("include_emojis", True):
-    #     requirements += "\n4. 适当地使用表情符号增加趣味性"
+    if config.get("include_emojis", True):
+        requirements += "\n4. 适当地使用表情符号增加趣味性"
     
     # 添加禁用词要求
     if custom_forbidden_words and len(custom_forbidden_words) > 0:
@@ -219,7 +217,9 @@ def _parse_generation_result(content, config):
 
     if "【标签】" in content:
         tags_part = (
-            content.split("【标签】")[1] if len(content.split("【标签】")) > 1 else ""
+            content.split("【标签】")[1]
+            if len(content.split("【标签】")) > 1
+            else ""
         )
         # 提取标签
         tag_candidates = [tag.strip() for tag in tags_part.split() if tag.strip()]
@@ -238,23 +238,10 @@ def _parse_generation_result(content, config):
 
     return {"title": title, "body": body, "tags": tags}
 
-def _get_model_name(app, llm_provider_config, has_images=False):
-    """
-    获取模型名称，优先使用用户配置的模型
-    
-    Args:
-        app: 应用对象，包含配置信息
-        llm_provider_config: 用户LLM配置
-        has_images: 是否有图片输入
-        
-    Returns:
-        模型名称
-    """
-    # 获取提供商类型
-    provider_type = llm_provider_config.provider_type
-    
+
+def _get_model_name(config, provider_type, has_images=False):
+    """获取模型名称，优先使用配置的模型"""
     # 从应用配置中获取模型名称
-    config = app.published_config.get("config", {})
     model_name = config.get("model_name")
     
     # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
@@ -263,7 +250,7 @@ def _get_model_name(app, llm_provider_config, has_images=False):
         if vision_model_name:
             return vision_model_name
     
-    # 如果用户指定了模型，使用用户指定的
+    # 如果配置中指定了模型，使用配置的模型
     if model_name:
         return model_name
     
@@ -279,6 +266,7 @@ def _get_model_name(app, llm_provider_config, has_images=False):
             return "deepseek-r1-250120"
     else:
         return None
+
 
 def _create_generation_record(
     generation_repo, prompt, image_urls, app_id, user_id, ip_address, user_agent
@@ -311,7 +299,6 @@ def _update_generation_success(
     model_name,
     temperature,
     max_tokens,
-    llm_provider_config_id,
     contains_forbidden_words=False,
     detected_forbidden_words=None,
     estimated_cost=0.0,
@@ -332,7 +319,6 @@ def _update_generation_success(
         "model_name": model_name,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "llm_provider_config_id": llm_provider_config_id,
         "contains_forbidden_words": contains_forbidden_words,
         "detected_forbidden_words": detected_forbidden_words or [],
         "estimated_cost": estimated_cost,
@@ -344,13 +330,14 @@ def _update_generation_success(
 
 
 def _update_generation_failure(
-    generation_repo, generation_id, user_id, error_message, duration_ms
+    generation_repo, generation_id, user_id, error_message, duration_ms, raw_request=None
 ):
     """更新生成失败状态"""
     update_data = {
         "status": "failed",
         "error_message": error_message,
         "duration_ms": duration_ms,
+        "raw_request": raw_request
     }
 
     return generation_repo.update(generation_id, user_id, update_data)
@@ -388,8 +375,6 @@ def external_generate():
         generation_repo = XhsCopyGenerationRepository(db_session)
         
         # 获取系统预置禁用词（如果需要）
-
-        
         forbidden_words_repo = ForbiddenWordsRepository(db_session)
         forbidden_words_service = ForbiddenWordsService(forbidden_words_repo)
         
@@ -409,9 +394,13 @@ def external_generate():
         # 合并系统预置禁用词和自定义禁用词
         all_forbidden_words = list(set(system_forbidden_words + custom_forbidden_words))
 
-        # 从应用中获取配置和关联的LLM配置
+        # 从应用中获取配置
         config = app.published_config.get("config", {})
-        llm_provider_config_id = app.llm_provider_config_id
+        
+        # 检查config中是否包含provider_type
+        provider_type = config.get("provider_type")
+        if not provider_type:
+            raise ValidationException("应用配置中未指定provider_type", PARAMETER_ERROR)
 
         # 创建生成记录
         start_time = time.time()
@@ -427,9 +416,9 @@ def external_generate():
 
         try:
             # 获取用户LLM配置
-            llm_provider_config = llm_provider_config_repo.get_by_id(
-                llm_provider_config_id, user_id
-            )
+            llm_provider_config = llm_provider_config_repo.get_default(user_id, provider_type)
+            if not llm_provider_config:
+                raise APIException(f"未找到{provider_type}的LLM配置", GENERATION_FAILED)
 
             # 创建LLM提供商实例
             ai_provider = _create_llm_provider(llm_provider_config)
@@ -441,7 +430,7 @@ def external_generate():
             has_images = bool(image_urls) and len(image_urls) > 0
             
             # 获取模型名称
-            model_name = _get_model_name(app, llm_provider_config, has_images)
+            model_name = _get_model_name(config, provider_type, has_images)
 
             # 生成文案参数
             max_tokens = config.get("max_tokens", 800)
@@ -492,39 +481,36 @@ def external_generate():
                         detected_words.append(word)
             
             # 更新生成记录
-            
             generation = _update_generation_success(
-    generation_repo,
-    generation_id=generation.id,
-    user_id=user_id,
-    title=parsed_result["title"],
-    content=parsed_result["body"],
-    tags=parsed_result["tags"],
-    tokens_used=tokens_used,
-    tokens_prompt=response.get("usage", {}).get("prompt_tokens", 0),
-    tokens_completion=response.get("usage", {}).get("completion_tokens", 0),
-    duration_ms=duration_ms,
-    provider_type=llm_provider_config.provider_type,
-    model_name=used_model,
-    temperature=temperature,
-    max_tokens=max_tokens,
-    llm_provider_config_id=llm_provider_config_id,
-    contains_forbidden_words=contains_forbidden,
-    detected_forbidden_words=detected_words,
-
-    raw_request={
-        "prompt": prompt,
-        "image_urls": image_urls,
-        "custom_forbidden_words": custom_forbidden_words,
-        "config": config,
-        "messages": messages
-    },
-    raw_response=response
-)
+                generation_repo,
+                generation_id=generation.id,
+                user_id=user_id,
+                title=parsed_result["title"],
+                content=parsed_result["body"],
+                tags=parsed_result["tags"],
+                tokens_used=tokens_used,
+                tokens_prompt=response.get("usage", {}).get("prompt_tokens", 0),
+                tokens_completion=response.get("usage", {}).get("completion_tokens", 0),
+                duration_ms=duration_ms,
+                provider_type=provider_type,
+                model_name=used_model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                contains_forbidden_words=contains_forbidden,
+                detected_forbidden_words=detected_words,
+                raw_request={
+                    "prompt": prompt,
+                    "image_urls": image_urls,
+                    "custom_forbidden_words": custom_forbidden_words,
+                    "config": config,
+                    "messages": messages
+                },
+                raw_response=response
+            )
 
             # 创建调试信息对象
             debug_info = {
-                "provider_type": llm_provider_config.provider_type,
+                "provider_type": provider_type,
                 "requested_model": model_name,
                 "actual_model": used_model,
                 "request_params": request_params,
@@ -536,7 +522,6 @@ def external_generate():
                 },
                 "duration_ms": duration_ms,
                 "app_id": app.id,
-                "llm_provider_config_id": llm_provider_config_id,
                 "forbidden_words_used": detected_words if contains_forbidden else []
             }
 
@@ -550,7 +535,7 @@ def external_generate():
                 "duration_ms": duration_ms,
                 "status": generation.status,
                 "model": used_model,
-                "provider_type": llm_provider_config.provider_type,
+                "provider_type": provider_type,
                 "contains_forbidden_words": contains_forbidden,
                 "detected_forbidden_words": detected_words,
                 "debug": debug_info  # 添加调试信息
@@ -567,6 +552,12 @@ def external_generate():
                 user_id=user_id,
                 error_message=str(e),
                 duration_ms=int((time.time() - start_time) * 1000),
+                raw_request={
+                    "prompt": prompt,
+                    "image_urls": image_urls,
+                    "custom_forbidden_words": custom_forbidden_words,
+                    "config": config
+                }
             )
 
             # 重新抛出异常
@@ -588,4 +579,3 @@ def external_generate():
             f"Unexpected error in external generate: {str(e)}\n{traceback.format_exc()}"
         )
         raise APIException(f"生成文案失败: {str(e)}", GENERATION_FAILED)
-
