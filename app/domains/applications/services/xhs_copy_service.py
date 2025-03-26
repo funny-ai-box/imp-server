@@ -116,7 +116,7 @@ class XhsCopyGenerationService:
             model_name = self._get_model_name(app, user_llm_config, has_images)
 
             # 生成文案
-            max_tokens = config.get("max_tokens", 2000)
+            max_tokens = config.get("max_tokens", 800)
             temperature = config.get("temperature", 0.7)
 
             response = self._call_llm_service(

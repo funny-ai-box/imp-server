@@ -151,11 +151,11 @@ def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
 
     # 添加配置要求
     requirements = "\n\n请按以下要求生成文案："
-    requirements += f"\n1. 标题长度不超过{config.get('title_length', 50)}个字"
-    requirements += f"\n2. 正文内容{config.get('content_length', 1000)}字左右"
+    # requirements += f"\n1. 标题长度不超过{config.get('title_length', 50)}个字"
+    # requirements += f"\n2. 正文内容{config.get('content_length', 300)}字左右"
     requirements += f"\n3. 生成{config.get('tags_count', 5)}个适合的标签"
-    if config.get("include_emojis", True):
-        requirements += "\n4. 适当地使用表情符号增加趣味性"
+    # if config.get("include_emojis", True):
+    #     requirements += "\n4. 适当地使用表情符号增加趣味性"
     
     # 添加禁用词要求
     if custom_forbidden_words and len(custom_forbidden_words) > 0:
@@ -444,7 +444,7 @@ def external_generate():
             model_name = _get_model_name(app, user_llm_config, has_images)
 
             # 生成文案参数
-            max_tokens = config.get("max_tokens", 2000)
+            max_tokens = config.get("max_tokens", 800)
             temperature = config.get("temperature", 0.7)
             
             # 保存请求参数用于调试

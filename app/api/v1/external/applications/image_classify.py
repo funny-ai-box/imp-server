@@ -424,7 +424,7 @@ def external_classify():
             model_name = _get_model_name(config)
 
             # 分类参数
-            max_tokens = config.get("max_tokens", 2000)
+            max_tokens = config.get("max_tokens", 800)
             temperature = config.get("temperature", 0.2)  # 降低温度增加确定性
             
             # 更新原始请求信息

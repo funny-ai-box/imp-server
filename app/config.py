@@ -66,7 +66,7 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     """测试环境配置"""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://aquagourd_q1:WVbGEyWr0vldxM9i@10.0.1.7:3306/imp_db"
 
 class ProductionConfig(Config):
     """生产环境配置"""
