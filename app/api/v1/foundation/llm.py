@@ -16,7 +16,7 @@ from app.api.middleware.auth import auth_required
 llm_providers_bp = Blueprint("llm_providers", __name__)
 
 
-@llm_providers_bp.route("/list_providers", methods=["GET"])
+@llm_providers_bp.route("/list", methods=["GET"])
 @auth_required
 def list_providers():
     """获取大模型平台列表"""

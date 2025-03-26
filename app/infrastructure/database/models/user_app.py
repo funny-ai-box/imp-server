@@ -1,5 +1,6 @@
 # app/infrastructure/database/models/user_app.py (修改)
 from datetime import datetime
+from app.core.security import generate_uuid
 from sqlalchemy import (
     Column,
     Integer,
@@ -19,9 +20,9 @@ class UserApp(db.Model):
 
     __tablename__ = "user_apps"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), primary_key=True, default=generate_uuid)
     user_id = Column(String(32), nullable=False, comment="所属用户ID")
-    app_id = Column(String(50), nullable=False, comment="应用唯一标识符")
+    app_id = Column(String(32), nullable=False, comment="应用唯一标识符")
     app_type = Column(String(50), nullable=False, comment="应用类型，如xhs_copy")
     name = Column(String(100), nullable=False, comment="应用名称")
     description = Column(Text, nullable=True, comment="应用描述")

@@ -1,4 +1,5 @@
 from datetime import datetime
+from app.core.security import generate_uuid
 from sqlalchemy import (
     Column,
     Integer,
@@ -16,7 +17,7 @@ class UserLLMConfig(db.Model):
 
     __tablename__ = "user_llm_configs"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(32), primary_key=True,default=generate_uuid)
     user_id = Column(String(32), nullable=False, comment="所属用户ID")
     provider_type = Column(
         String(50), nullable=False, comment="提供商类型，如OpenAI, Claude, Volcano"

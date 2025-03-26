@@ -74,85 +74,14 @@ class ImageClassifyRepository:
         self.db.refresh(record)
         return record
 
-    def update(
-        self, classification_id: int, user_id: str, record_data: dict
-    ) -> ImageClassification:
+    def update(self, classification_id: int, user_id: str, update_data: dict) -> ImageClassification:
         """更新分类记录"""
         record = self.get_by_id(classification_id, user_id)
 
-        for key, value in record_data.items():
+        for key, value in update_data.items():
             if hasattr(record, key):
                 setattr(record, key, value)
 
         self.db.commit()
         self.db.refresh(record)
         return record
-
-    def delete(self, classification_id: int, user_id: str) -> bool:
-        """删除分类记录"""
-        record = self.get_by_id(classification_id, user_id)
-        self.db.delete(record)
-        self.db.commit()
-        return True
-
-    def get_statistics(
-        self,
-        user_id: str,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-    ) -> Dict[str, Any]:
-        """获取分类统计数据"""
-        query = self.db.query(ImageClassification).filter(
-            ImageClassification.user_id == user_id
-        )
-
-        if start_date and end_date:
-            query = query.filter(
-                ImageClassification.created_at >= start_date,
-                ImageClassification.created_at <= end_date,
-            )
-
-        # 总分类次数
-        total_classifications = query.count()
-
-        # 成功分类次数
-        successful_classifications = query.filter(
-            ImageClassification.status == "completed"
-        ).count()
-
-        # 失败分类次数
-        failed_classifications = query.filter(
-            ImageClassification.status == "failed"
-        ).count()
-
-        # 平均处理时间
-        avg_duration = (
-            self.db.query(func.avg(ImageClassification.duration_ms))
-            .filter(
-                ImageClassification.user_id == user_id,
-                ImageClassification.status == "completed",
-            )
-            .scalar()
-            or 0
-        )
-
-        # 总Token使用量
-        total_tokens = (
-            self.db.query(func.sum(ImageClassification.tokens_used))
-            .filter(ImageClassification.user_id == user_id)
-            .scalar()
-            or 0
-        )
-
-        # 最近一次分类时间
-        latest_classification = query.order_by(ImageClassification.created_at.desc()).first()
-        latest_time = latest_classification.created_at if latest_classification else None
-
-        return {
-            "total_classifications": total_classifications,
-            "successful_classifications": successful_classifications,
-            "failed_classifications": failed_classifications,
-            "avg_duration_ms": float(avg_duration),
-            "total_tokens_used": int(total_tokens),
-            "latest_classification_time": latest_time.isoformat() if latest_time else None,
-        }

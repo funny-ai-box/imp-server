@@ -60,31 +60,3 @@ class LLMProviderFactory:
                 raise
             raise APIException(f"创建AI提供商失败: {str(e)}", EXTERNAL_API_ERROR)
     
-    @classmethod
-    def get_available_providers(cls) -> Dict[str, Dict[str, Any]]:
-        """获取所有可用的AI提供商信息
-        
-        Returns:
-            提供商信息字典，键为提供商名称，值为提供商描述
-        """
-        return {
-            "openai": {
-                "name": "OpenAI",
-                "description": "OpenAI API服务，提供GPT系列模型和嵌入模型",
-                "features": ["text_generation", "chat_completion", "embeddings"],
-                "default_models": {
-                    "text": "gpt-4o",
-                    "chat": "gpt-4o",
-                    "embeddings": "text-embedding-3-large"
-                }
-            },
-            "anthropic": {
-                "name": "Anthropic",
-                "description": "Anthropic API服务，提供Claude系列模型",
-                "features": ["text_generation", "chat_completion"],
-                "default_models": {
-                    "text": "claude-3-opus-20240229",
-                    "chat": "claude-3-opus-20240229"
-                }
-            }
-        }

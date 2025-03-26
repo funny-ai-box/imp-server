@@ -67,7 +67,7 @@ class XhsCopyGenerationService:
         self,
         prompt: str,
         image_urls: List[str],
-        app_id: Optional[int] = None,
+        app_id: Optional[str] = None,
         user_id: str = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -174,7 +174,7 @@ class XhsCopyGenerationService:
                 if not url.startswith(("http://", "https://")):
                     raise ValidationException(f"无效的图片URL: {url}", PARAMETER_ERROR)
 
-    def _get_generation_app(self, app_id: Optional[int], user_id: str):
+    def _get_generation_app(self, app_id: Optional[str], user_id: str):
         """获取生成应用配置"""
         # 如果没有指定应用ID，使用默认应用
         if not app_id:
@@ -526,33 +526,6 @@ class XhsCopyGenerationService:
         """删除生成记录"""
         return self.generation_repo.delete(generation_id, user_id)
 
-    def get_statistics(self, user_id: str, days: int = 30) -> Dict[str, Any]:
-        """获取生成统计数据"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-
-        return self.generation_repo.get_statistics(user_id, start_date, end_date)
-
-    def rate_generation(
-        self,
-        generation_id: int,
-        user_id: str,
-        rating: int,
-        feedback: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """对生成结果评分"""
-        # 验证评分
-        if rating < 1 or rating > 5:
-            raise ValidationException("评分必须在1-5之间", PARAMETER_ERROR)
-
-        # 更新评分
-        update_data = {"user_rating": rating}
-
-        if feedback:
-            update_data["user_feedback"] = feedback
-
-        generation = self.generation_repo.update(generation_id, user_id, update_data)
-        return self._format_generation(generation)
 
     def _format_generation(self, generation) -> Dict[str, Any]:
         """格式化生成记录数据"""

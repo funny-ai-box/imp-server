@@ -18,20 +18,20 @@ class UserAppRepository:
         """获取用户的所有应用"""
         return self.db.query(UserApp).filter(UserApp.user_id == user_id).all()
 
-    def get_by_id(self, app_id: int, user_id: str) -> UserApp:
+    def get_by_id(self, id: str, user_id: str) -> UserApp:
         """根据ID获取用户应用"""
         app = (
             self.db.query(UserApp)
-            .filter(UserApp.id == app_id, UserApp.user_id == user_id)
+            .filter(UserApp.id == id, UserApp.user_id == user_id)
             .first()
         )
 
         if not app:
-            raise NotFoundException(f"未找到ID为{app_id}的应用")
+            raise NotFoundException(f"未找到ID为{id}的应用")
 
         return app
     
-    def get_by_app_id(self, app_id: int, user_id: str) -> UserApp:
+    def get_by_app_id(self, app_id: str, user_id: str) -> UserApp:
         """根据应用ID获取应用"""
         print("get_by_app_id")
         print(f"app_id: {app_id}, user_id: {user_id}")
@@ -78,7 +78,7 @@ class UserAppRepository:
         self.db.refresh(app)
         return app
 
-    def update(self, app_id: int, user_id: str, app_data: dict) -> UserApp:
+    def update(self, app_id: str, user_id: str, app_data: dict) -> UserApp:
         """更新应用"""
         app = self.get_by_app_id(app_id, user_id)
 
@@ -90,14 +90,14 @@ class UserAppRepository:
         self.db.refresh(app)
         return app
 
-    def delete(self, app_id: int, user_id: str) -> bool:
+    def delete(self, app_id: str, user_id: str) -> bool:
         """删除应用"""
         app = self.get_by_id(app_id, user_id)
         self.db.delete(app)
         self.db.commit()
         return True
 
-    def set_as_default(self, app_id: int, user_id: str) -> UserApp:
+    def set_as_default(self, app_id: str, user_id: str) -> UserApp:
         """设置应用为默认"""
         # 获取当前应用
         app = self.get_by_id(app_id, user_id)

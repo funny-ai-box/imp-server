@@ -14,7 +14,7 @@ class ImageClassification(db.Model):
     # 请求信息
     image_url = Column(String(1024), nullable=False, comment="图片URL")
     categories = Column(JSON, nullable=False, comment="分类选项列表")
-    app_id = Column(Integer, nullable=False, comment="使用的应用ID")
+    app_id = Column(String(32), nullable=False, comment="使用的应用ID")
 
     # 分类结果
     category_id = Column(String(64), nullable=True, comment="识别的分类ID")

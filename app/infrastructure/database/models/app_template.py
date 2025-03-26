@@ -1,6 +1,7 @@
 # app/infrastructure/database/models/app_template.py
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, JSON
+from app.core.security import generate_uuid
+from sqlalchemy import Column,  String, Text, Boolean, DateTime, JSON
 from app.extensions import db
 
 
@@ -9,8 +10,7 @@ class AppTemplate(db.Model):
 
     __tablename__ = "app_templates"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    app_id = Column(String(50), nullable=False, unique=True, comment="应用唯一标识符")
+    id = Column(String(32), primary_key=True, default=generate_uuid)
     app_type = Column(String(50), nullable=False, index=True, comment="应用类型分类")
     name = Column(String(100), nullable=False, comment="应用名称")
     version = Column(String(20), nullable=False, default="1.0", comment="应用版本")

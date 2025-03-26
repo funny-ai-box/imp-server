@@ -71,7 +71,7 @@ class ImageClassifyService:
         self,
         image_url: str,
         categories: List[Dict[str, str]],
-        app_id: Optional[int] = None,
+        app_id: Optional[str] = None,
         user_id: str = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
@@ -180,7 +180,7 @@ class ImageClassifyService:
             if not isinstance(category, dict) or "id" not in category or "text" not in category:
                 raise ValidationException("分类列表格式错误，每项必须包含id和text字段", INVALID_CATEGORIES)
 
-    def _get_classification_app(self, app_id: Optional[int], user_id: str):
+    def _get_classification_app(self, app_id: Optional[str], user_id: str):
         """获取分类应用配置"""
         # 如果没有指定应用ID，使用默认应用
         if not app_id:
@@ -479,37 +479,6 @@ class ImageClassifyService:
 
         return self.classify_repo.update(classification_id, user_id, update_data)
 
-    def delete_classification(self, classification_id: int, user_id: str) -> bool:
-        """删除分类记录"""
-        return self.classify_repo.delete(classification_id, user_id)
-
-    def get_statistics(self, user_id: str, days: int = 30) -> Dict[str, Any]:
-        """获取分类统计数据"""
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
-
-        return self.classify_repo.get_statistics(user_id, start_date, end_date)
-
-    def rate_classification(
-        self,
-        classification_id: int,
-        user_id: str,
-        rating: int,
-        feedback: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """对分类结果评分"""
-        # 验证评分
-        if rating < 1 or rating > 5:
-            raise ValidationException("评分必须在1-5之间", PARAMETER_ERROR)
-
-        # 更新评分
-        update_data = {"user_rating": rating}
-
-        if feedback:
-            update_data["user_feedback"] = feedback
-
-        record = self.classify_repo.update(classification_id, user_id, update_data)
-        return self._format_classification(record)
 
     def _format_classification(self, record) -> Dict[str, Any]:
         """格式化分类记录数据"""

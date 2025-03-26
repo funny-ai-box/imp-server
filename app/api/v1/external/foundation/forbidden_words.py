@@ -55,21 +55,3 @@ def check_content():
     }, "内容检查完成")
 
 
-@external_forbidden_words_bp.route("/prompt", methods=["GET"])
-@app_key_required
-def get_ai_prompt():
-    """获取给AI的提示词，告知违禁词列表（外部调用）"""
-    # 获取查询参数
-    application = request.args.get("application", "xhs_copy")  # 默认为小红书应用
-    
-    # 初始化存储库和服务
-    db_session = g.db_session
-    forbidden_words_repo = ForbiddenWordsRepository(db_session)
-    forbidden_words_service = ForbiddenWordsService(forbidden_words_repo)
-    
-    # 获取提示词
-    prompt = forbidden_words_service.get_prompt_for_ai(application)
-    
-    return success_response({
-        "prompt": prompt
-    }, "获取AI提示词成功")

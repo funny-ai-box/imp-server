@@ -33,35 +33,22 @@ def list_available_apps():
     return success_response(templates, "获取可用应用列表成功")
 
 
-@app_store_bp.route("/get", methods=["POST"])
+@app_store_bp.route("/detail", methods=["GET"])
 @auth_required
 def get_app_details():
     """获取特定应用的详细信息"""
     # 验证请求数据
-    data = request.get_json()
+    data = request.args
     if not data:
         raise ValidationException("请求数据不能为空")
-
-    app_id = data.get("app_id")
-    app_type = data.get("app_type")
-    template_id = data.get("template_id")
-
-    if not app_id and not app_type and not template_id:
-        raise ValidationException("请提供app_id、app_type或template_id")
-
+    app_id = data.get("id")
+    if not app_id :
+        raise ValidationException("请提供app_id")
     # 初始化存储库和服务
     db_session = g.db_session
     template_repo = AppTemplateRepository(db_session)
     app_store_service = AppStoreService(template_repo)
-
-    # 获取应用详情
-    if app_id:
-        template = app_store_service.get_template_by_app_id(app_id)
-    elif template_id:
-        template = app_store_service.get_template_by_id(template_id)
-    else:
-        template = app_store_service.get_template_by_type(app_type)
-
+    template = app_store_service.get_template_by_id(app_id)
     return success_response(template, "获取应用详情成功")
 
 

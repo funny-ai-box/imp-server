@@ -182,7 +182,7 @@ def get_auth_requirements():
         },
         "Volcano": {
             "auth_type": "id_key_secret",
-            "required_fields": ["app_id", "app_key", "app_secret"],
+            "required_fields": ["api_key"],
             "optional_fields": ["api_base_url", "region"],
             "description": "火山引擎需要应用ID、应用Key和应用密钥",
         },

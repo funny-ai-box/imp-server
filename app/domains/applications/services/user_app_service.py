@@ -35,7 +35,7 @@ class UserAppService:
         self.user_llm_config_repo = user_llm_config_repository
 
     def instantiate_from_template(
-        self, template_id: int, user_id: str, custom_config: Dict[str, Any] = None
+        self, template_id: str, user_id: str, custom_config: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """从应用模板实例化用户应用
 
@@ -87,7 +87,7 @@ class UserAppService:
         apps = self.user_app_repo.get_all_by_user(user_id)
         return [self._format_app(app) for app in apps]
 
-    def get_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
+    def get_app(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """获取用户特定应用"""
         app = self.user_app_repo.get_by_id(app_id, user_id)
         return self._format_app(app)
@@ -158,7 +158,7 @@ class UserAppService:
         return self._format_app(app)
 
     def update_app(
-        self, app_id: int, app_data: Dict[str, Any], user_id: str
+        self, app_id: str, app_data: Dict[str, Any], user_id: str
     ) -> Dict[str, Any]:
         """更新用户应用配置"""
         # 获取当前应用
@@ -205,7 +205,7 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, app_data)
         return self._format_app(app)
 
-    def publish_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
+    def publish_app(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """发布应用配置"""
         # 获取当前应用
         app = self.user_app_repo.get_by_app_id(app_id, user_id)
@@ -256,7 +256,7 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)
 
-    def unpublish_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
+    def unpublish_app(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """取消发布应用"""
         # 更新发布状态
         update_data = {"published": False, "updated_at": datetime.utcnow()}
@@ -264,7 +264,7 @@ class UserAppService:
         app = self.user_app_repo.update(app_id, user_id, update_data)
         return self._format_app(app)
 
-    def delete_app(self, app_id: int, user_id: str) -> bool:
+    def delete_app(self, app_id: str, user_id: str) -> bool:
         """从用户列表删除应用"""
         # 获取应用信息，用于处理默认应用的转移
         app = self.user_app_repo.get_by_id(app_id, user_id)
@@ -278,12 +278,12 @@ class UserAppService:
 
         return self.user_app_repo.delete(app_id, user_id)
 
-    def set_default_app(self, app_id: int, user_id: str) -> Dict[str, Any]:
+    def set_default_app(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """设置默认应用"""
         app = self.user_app_repo.set_as_default(app_id, user_id)
         return self._format_app(app)
 
-    def regenerate_app_key(self, app_id: int, user_id: str) -> Dict[str, Any]:
+    def regenerate_app_key(self, app_id: str, user_id: str) -> Dict[str, Any]:
         """重新生成应用密钥"""
         # 生成新密钥
         new_key = self._generate_app_key()

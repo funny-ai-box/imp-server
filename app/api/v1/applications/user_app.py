@@ -32,12 +32,12 @@ def list_user_apps():
     
     return success_response(apps, "获取用户应用列表成功")
 
-@user_app_bp.route("/get", methods=["POST"])
+@user_app_bp.route("/detail", methods=["GET"])
 @auth_required
 def get_user_app():
     """获取特定应用"""
     # 验证请求数据
-    data = request.get_json()
+    data = request.args
     if not data or "app_id" not in data:
         raise ValidationException("缺少必填参数: app_id")
     
@@ -55,27 +55,6 @@ def get_user_app():
     
     return success_response(app, "获取应用成功")
 
-@user_app_bp.route("/add", methods=["POST"])
-@auth_required
-def add_user_app():
-    """添加应用到用户列表"""
-    # 验证请求数据
-    data = request.get_json()
-    if not data:
-        raise ValidationException("请求数据不能为空")
-    
-    user_id = g.user_id
-    
-    # 初始化存储库和服务
-    db_session = g.db_session
-    user_app_repo = UserAppRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
-    
-    # 添加应用
-    app = user_app_service.add_app(data, user_id)
-    
-    return success_response(app, "应用添加成功")
 
 @user_app_bp.route("/update", methods=["POST"])
 @auth_required

@@ -8,7 +8,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from sqlalchemy.orm import Session
 from app.infrastructure.database.models.user import User
-from app.infrastructure.database.models.llm import LLMAuditLog
 
 logger = logging.getLogger(__name__)
 
@@ -220,78 +219,4 @@ class UserRepository:
             logger.error(f"Error finding users: {str(e)}")
             return [], 0
 
-    def log_activity(
-        self,
-        user_id: str,
-        action: str,
-        resource_type: Optional[str] = None,
-        resource_id: Optional[str] = None,
-        details: Optional[str] = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-    ) -> LLMAuditLog:
-        """记录用户活动
-
-        Args:
-            user_id: 用户ID
-            action: 操作类型
-            resource_type: 资源类型
-            resource_id: 资源ID
-            details: 详细信息
-            ip_address: IP地址
-            user_agent: 用户代理
-
-        Returns:
-            创建的审计日志对象
-
-        Raises:
-            SQLAlchemyError: 数据库操作失败
-        """
-        try:
-            log = LLMAuditLog(
-                user_id=user_id,
-                action=action,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                details=details,
-                ip_address=ip_address,
-                user_agent=user_agent,
-            )
-            self.db.add(log)
-            self.db.commit()
-            return log
-        except SQLAlchemyError as e:
-            self.db.rollback()
-            logger.error(f"Failed to log activity: {str(e)}")
-            raise
-
-    def get_user_activity_logs(
-        self, user_id: str, page: int = 1, per_page: int = 20
-    ) -> tuple[List[LLMAuditLog], int]:
-        """获取用户活动日志
-
-        Args:
-            user_id: 用户ID
-            page: 页码
-            per_page: 每页记录数
-
-        Returns:
-            (日志列表, 总记录数)
-        """
-        try:
-            query = LLMAuditLog.query.filter_by(user_id=user_id)
-
-            # 计算总记录数
-            total = query.count()
-
-            # 应用分页
-            logs = (
-                query.order_by(LLMAuditLog.created_at.desc())
-                .paginate(page=page, per_page=per_page)
-                .items
-            )
-
-            return logs, total
-        except SQLAlchemyError as e:
-            logger.error(f"Error getting user activity logs: {str(e)}")
-            return [], 0
+ 

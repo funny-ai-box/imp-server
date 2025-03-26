@@ -21,15 +21,3 @@ class ForbiddenWord(db.Model):
     def __repr__(self):
         return f"<ForbiddenWord {self.word} - {self.application}>"
 
-class ForbiddenWordLog(db.Model):
-    """违禁词检测日志"""
-    __tablename__ = "forbidden_word_logs"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    content_sample = Column(Text, nullable=True, comment="内容样本")
-    detected_words = Column(JSON, nullable=False, comment="检测到的违禁词")
-    application = Column(String(50), nullable=False, comment="应用场景")
-    detection_time = Column(DateTime, default=datetime.utcnow, comment="检测时间")
-    
-    def __repr__(self):
-        return f"<ForbiddenWordLog {self.id}>"
