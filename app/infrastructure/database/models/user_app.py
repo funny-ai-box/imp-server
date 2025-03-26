@@ -34,7 +34,7 @@ class UserApp(db.Model):
     config = Column(JSON, nullable=True, comment="应用配置")
 
     # 用户LLM配置关联
-    user_llm_config_id = Column(Integer, nullable=True, comment="用户LLM配置ID")
+    llm_provider_config_id = Column(Integer, nullable=True, comment="用户LLM配置ID")
 
     # 应用密钥和状态
     app_key = Column(String(64), nullable=False, unique=True, comment="应用唯一标识")

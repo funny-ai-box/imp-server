@@ -13,11 +13,9 @@ from app.infrastructure.database.repositories.image_classify_repository import (
 )
 from app.infrastructure.database.repositories.llm_repository import (
     LLMProviderRepository,
-    LLMModelRepository,
+    LLMModelRepository,LLMProviderConfigRepository
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
-)
+
 from app.api.middleware.auth import auth_required
 import logging
 import traceback
@@ -61,14 +59,14 @@ def classify_image():
         user_app_repo = UserAppRepository(db_session)
         provider_repo = LLMProviderRepository(db_session)
         model_repo = LLMModelRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
 
         classify_service = ImageClassifyService(
             classify_repo,
             user_app_repo,
             provider_repo,
             model_repo,
-            user_llm_config_repo,
+            llm_provider_config_repo,
         )
 
         # 执行图片分类
@@ -120,14 +118,14 @@ def list_classifications():
         user_app_repo = UserAppRepository(db_session)
         provider_repo = LLMProviderRepository(db_session)
         model_repo = LLMModelRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
 
         classify_service = ImageClassifyService(
             classify_repo,
             user_app_repo,
             provider_repo,
             model_repo,
-            user_llm_config_repo,
+            llm_provider_config_repo,
         )
 
         # 获取分类记录

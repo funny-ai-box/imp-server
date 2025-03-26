@@ -14,10 +14,9 @@ from app.infrastructure.database.repositories.xhs_copy_repository import (
 from app.infrastructure.database.repositories.llm_repository import (
     LLMProviderRepository,
     LLMModelRepository,
+    LLMProviderConfigRepository
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
-)
+
 from app.api.middleware.auth import auth_required
 import logging
 import traceback
@@ -64,13 +63,13 @@ def generate_content():
 
         provider_repo = LLMProviderRepository(db_session)
         model_repo = LLMModelRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
 
         generation_service = XhsCopyGenerationService(
             generation_repo,
             provider_repo,
             model_repo,
-            user_llm_config_repo,
+            llm_provider_config_repo,
         )
 
         # 生成文案
@@ -125,14 +124,14 @@ def list_generations():
         user_app_repo = UserAppRepository(db_session)
         provider_repo = LLMProviderRepository(db_session)
         model_repo = LLMModelRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
 
         generation_service = XhsCopyGenerationService(
             generation_repo,
             user_app_repo,
             provider_repo,
             model_repo,
-            user_llm_config_repo,
+            llm_provider_config_repo,
         )
 
         # 获取生成记录

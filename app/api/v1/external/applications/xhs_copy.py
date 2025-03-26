@@ -9,8 +9,8 @@ from app.core.status_codes import GENERATION_FAILED, PARAMETER_ERROR
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
+from app.infrastructure.database.repositories.llm_repository import (
+    LLMProviderConfigRepository,
 )
 from app.infrastructure.database.repositories.xhs_copy_repository import (
     XhsCopyGenerationRepository,
@@ -59,60 +59,60 @@ def _validate_and_extract_params(request):
     return data
 
 
-def _create_llm_provider(user_llm_config):
+def _create_llm_provider(llm_provider_config):
     """创建LLM提供商实例"""
-    provider_type = user_llm_config.provider_type
+    provider_type = llm_provider_config.provider_type
     
     try:
         if provider_type == "OpenAI":
             # 检查API密钥是否有效
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException("您尚未配置OpenAI API密钥", GENERATION_FAILED)
                 
             # 记录连接尝试（用于调试）
-            print(f"正在尝试连接到OpenAI，基础URL为: {user_llm_config.api_base_url}")
+            print(f"正在尝试连接到OpenAI，基础URL为: {llm_provider_config.api_base_url}")
             
             return LLMProviderFactory.create_provider(
                 "openai",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                api_version=user_llm_config.api_version,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                llm_provider_config.api_key,
+                api_base_url=llm_provider_config.api_base_url,
+                api_version=llm_provider_config.api_version,
+                timeout=llm_provider_config.request_timeout,
+                max_retries=llm_provider_config.max_retries,
             )
         elif provider_type == "Claude":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException("您尚未配置Claude API密钥", GENERATION_FAILED)
             
-            print(f"正在尝试连接到Claude，基础URL为: {user_llm_config.api_base_url}")
+            print(f"正在尝试连接到Claude，基础URL为: {llm_provider_config.api_base_url}")
             
             return LLMProviderFactory.create_provider(
                 "anthropic",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                llm_provider_config.api_key,
+                api_base_url=llm_provider_config.api_base_url,
+                timeout=llm_provider_config.request_timeout,
+                max_retries=llm_provider_config.max_retries,
             )
         elif provider_type == "Volcano":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException("您尚未配置火山引擎API密钥", GENERATION_FAILED)
             
             print(f"正在尝试连接到火山引擎")
             
             # 火山引擎可能需要额外的配置项
             config = {
-                "timeout": user_llm_config.request_timeout,
-                "max_retries": user_llm_config.max_retries,
+                "timeout": llm_provider_config.request_timeout,
+                "max_retries": llm_provider_config.max_retries,
             }
 
             # 添加应用ID和密钥（如果有）
-            if user_llm_config.app_id:
-                config["app_id"] = user_llm_config.app_id
-            if user_llm_config.app_secret:
-                config["app_secret"] = user_llm_config.app_secret
+            if llm_provider_config.app_id:
+                config["app_id"] = llm_provider_config.app_id
+            if llm_provider_config.app_secret:
+                config["app_secret"] = llm_provider_config.app_secret
 
             return LLMProviderFactory.create_provider(
-                "volcano", user_llm_config.api_key, **config
+                "volcano", llm_provider_config.api_key, **config
             )
         else:
             raise APIException(f"不支持的LLM提供商类型: {provider_type}", GENERATION_FAILED)
@@ -238,20 +238,20 @@ def _parse_generation_result(content, config):
 
     return {"title": title, "body": body, "tags": tags}
 
-def _get_model_name(app, user_llm_config, has_images=False):
+def _get_model_name(app, llm_provider_config, has_images=False):
     """
     获取模型名称，优先使用用户配置的模型
     
     Args:
         app: 应用对象，包含配置信息
-        user_llm_config: 用户LLM配置
+        llm_provider_config: 用户LLM配置
         has_images: 是否有图片输入
         
     Returns:
         模型名称
     """
     # 获取提供商类型
-    provider_type = user_llm_config.provider_type
+    provider_type = llm_provider_config.provider_type
     
     # 从应用配置中获取模型名称
     config = app.published_config.get("config", {})
@@ -311,7 +311,7 @@ def _update_generation_success(
     model_name,
     temperature,
     max_tokens,
-    user_llm_config_id,
+    llm_provider_config_id,
     contains_forbidden_words=False,
     detected_forbidden_words=None,
     estimated_cost=0.0,
@@ -332,7 +332,7 @@ def _update_generation_success(
         "model_name": model_name,
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "user_llm_config_id": user_llm_config_id,
+        "llm_provider_config_id": llm_provider_config_id,
         "contains_forbidden_words": contains_forbidden_words,
         "detected_forbidden_words": detected_forbidden_words or [],
         "estimated_cost": estimated_cost,
@@ -384,7 +384,7 @@ def external_generate():
         # 初始化服务和仓库
         db_session = g.db_session
         user_app_repo = UserAppRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
         generation_repo = XhsCopyGenerationRepository(db_session)
         
         # 获取系统预置禁用词（如果需要）
@@ -411,7 +411,7 @@ def external_generate():
 
         # 从应用中获取配置和关联的LLM配置
         config = app.published_config.get("config", {})
-        user_llm_config_id = app.user_llm_config_id
+        llm_provider_config_id = app.llm_provider_config_id
 
         # 创建生成记录
         start_time = time.time()
@@ -427,12 +427,12 @@ def external_generate():
 
         try:
             # 获取用户LLM配置
-            user_llm_config = user_llm_config_repo.get_by_id(
-                user_llm_config_id, user_id
+            llm_provider_config = llm_provider_config_repo.get_by_id(
+                llm_provider_config_id, user_id
             )
 
             # 创建LLM提供商实例
-            ai_provider = _create_llm_provider(user_llm_config)
+            ai_provider = _create_llm_provider(llm_provider_config)
 
             # 准备提示词，包含禁用词
             messages = _prepare_prompts(config, prompt, image_urls, all_forbidden_words)
@@ -441,7 +441,7 @@ def external_generate():
             has_images = bool(image_urls) and len(image_urls) > 0
             
             # 获取模型名称
-            model_name = _get_model_name(app, user_llm_config, has_images)
+            model_name = _get_model_name(app, llm_provider_config, has_images)
 
             # 生成文案参数
             max_tokens = config.get("max_tokens", 800)
@@ -504,11 +504,11 @@ def external_generate():
     tokens_prompt=response.get("usage", {}).get("prompt_tokens", 0),
     tokens_completion=response.get("usage", {}).get("completion_tokens", 0),
     duration_ms=duration_ms,
-    provider_type=user_llm_config.provider_type,
+    provider_type=llm_provider_config.provider_type,
     model_name=used_model,
     temperature=temperature,
     max_tokens=max_tokens,
-    user_llm_config_id=user_llm_config_id,
+    llm_provider_config_id=llm_provider_config_id,
     contains_forbidden_words=contains_forbidden,
     detected_forbidden_words=detected_words,
 
@@ -524,7 +524,7 @@ def external_generate():
 
             # 创建调试信息对象
             debug_info = {
-                "provider_type": user_llm_config.provider_type,
+                "provider_type": llm_provider_config.provider_type,
                 "requested_model": model_name,
                 "actual_model": used_model,
                 "request_params": request_params,
@@ -536,7 +536,7 @@ def external_generate():
                 },
                 "duration_ms": duration_ms,
                 "app_id": app.id,
-                "user_llm_config_id": user_llm_config_id,
+                "llm_provider_config_id": llm_provider_config_id,
                 "forbidden_words_used": detected_words if contains_forbidden else []
             }
 
@@ -550,7 +550,7 @@ def external_generate():
                 "duration_ms": duration_ms,
                 "status": generation.status,
                 "model": used_model,
-                "provider_type": user_llm_config.provider_type,
+                "provider_type": llm_provider_config.provider_type,
                 "contains_forbidden_words": contains_forbidden,
                 "detected_forbidden_words": detected_words,
                 "debug": debug_info  # 添加调试信息

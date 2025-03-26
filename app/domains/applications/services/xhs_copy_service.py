@@ -6,9 +6,7 @@ import traceback
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime, timedelta
 
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
-)
+
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
@@ -18,6 +16,7 @@ from app.infrastructure.database.repositories.xhs_copy_repository import (
 from app.infrastructure.database.repositories.llm_repository import (
     LLMProviderRepository,
     LLMModelRepository,
+    LLMProviderConfigRepository
 )
 
 from app.infrastructure.llm_providers.factory import LLMProviderFactory
@@ -40,14 +39,14 @@ class XhsCopyGenerationService:
         user_app_repository: UserAppRepository,
         provider_repository: LLMProviderRepository,
         model_repository: LLMModelRepository,
-        user_llm_config_repository: Optional[UserLLMConfigRepository] = None,
+        llm_provider_config_repository: Optional[LLMProviderConfigRepository] = None,
     ):
         """初始化服务"""
         self.generation_repo = generation_repository
         self.user_app_repo = user_app_repository
         self.provider_repo = provider_repository
         self.model_repo = model_repository
-        self.user_llm_config_repo = user_llm_config_repository
+        self.llm_provider_config_repository = llm_provider_config_repository
 
     def get_all_generations(
         self, user_id: str, page: int = 1, per_page: int = 20, **filters
@@ -102,8 +101,8 @@ class XhsCopyGenerationService:
         try:
             # 获取LLM服务
             ai_provider = self._get_llm_provider(app, user_id)
-            user_llm_config = self.user_llm_config_repo.get_by_id(
-    app.user_llm_config_id, user_id
+            llm_provider_config = self.llm_provider_config_repository.get_by_id(
+    app.llm_provider_config_id, user_id
 )
 
             # 准备提示词
@@ -113,7 +112,7 @@ class XhsCopyGenerationService:
 
             # 获取模型名称
             provider_type = self._get_provider_type(app, user_id)
-            model_name = self._get_model_name(app, user_llm_config, has_images)
+            model_name = self._get_model_name(app, llm_provider_config, has_images)
 
             # 生成文案
             max_tokens = config.get("max_tokens", 800)
@@ -206,42 +205,42 @@ class XhsCopyGenerationService:
     def _get_provider_type(self, app, user_id):
         """获取提供商类型"""
         # 验证用户LLM配置
-        if not app.user_llm_config_id or not self.user_llm_config_repo:
+        if not app.llm_provider_config_id or not self.llm_provider_config_repository:
             raise APIException(
                 "未配置LLM服务，请先为应用绑定LLM配置", GENERATION_FAILED
             )
 
         try:
-            user_llm_config = self.user_llm_config_repo.get_by_id(
-                app.user_llm_config_id, user_id
+            llm_provider_config = self.llm_provider_config_repository.get_by_id(
+                app.llm_provider_config_id, user_id
             )
-            return user_llm_config.provider_type
+            return llm_provider_config.provider_type
         except Exception as e:
             raise APIException(f"无法获取LLM配置: {str(e)}", GENERATION_FAILED)
 
     def _get_llm_provider(self, app, user_id):
         """获取LLM服务提供商"""
         # 验证用户LLM配置
-        if not app.user_llm_config_id:
+        if not app.llm_provider_config_id:
             raise APIException(
                 "未配置LLM服务，请先为应用绑定LLM配置", GENERATION_FAILED
             )
 
-        if not self.user_llm_config_repo:
+        if not self.llm_provider_config_repository:
             raise APIException("系统未配置LLM服务接口", GENERATION_FAILED)
 
         try:
-            user_llm_config = self.user_llm_config_repo.get_by_id(
-                app.user_llm_config_id, user_id
+            llm_provider_config = self.llm_provider_config_repository.get_by_id(
+                app.llm_provider_config_id, user_id
             )
         except Exception as e:
             raise APIException(f"无法获取LLM配置: {str(e)}", GENERATION_FAILED)
 
         # 创建AI提供商实例
-        provider_type = user_llm_config.provider_type
+        provider_type = llm_provider_config.provider_type
 
         if provider_type == "OpenAI":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException(
                     "您尚未配置OpenAI API密钥，请先在LLM配置中设置API密钥",
                     GENERATION_FAILED,
@@ -249,14 +248,14 @@ class XhsCopyGenerationService:
 
             return LLMProviderFactory.create_provider(
                 "openai",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                api_version=user_llm_config.api_version,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                llm_provider_config.api_key,
+                api_base_url=llm_provider_config.api_base_url,
+                api_version=llm_provider_config.api_version,
+                timeout=llm_provider_config.request_timeout,
+                max_retries=llm_provider_config.max_retries,
             )
         elif provider_type == "Claude":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException(
                     "您尚未配置Claude API密钥，请先在LLM配置中设置API密钥",
                     GENERATION_FAILED,
@@ -264,13 +263,13 @@ class XhsCopyGenerationService:
 
             return LLMProviderFactory.create_provider(
                 "anthropic",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                llm_provider_config.api_key,
+                api_base_url=llm_provider_config.api_base_url,
+                timeout=llm_provider_config.request_timeout,
+                max_retries=llm_provider_config.max_retries,
             )
         elif provider_type == "Volcano":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException(
                     "您尚未配置火山引擎API密钥，请先在LLM配置中设置API密钥",
                     GENERATION_FAILED,
@@ -278,18 +277,18 @@ class XhsCopyGenerationService:
 
             # 火山引擎可能需要额外的配置项
             config = {
-                "timeout": user_llm_config.request_timeout,
-                "max_retries": user_llm_config.max_retries,
+                "timeout": llm_provider_config.request_timeout,
+                "max_retries": llm_provider_config.max_retries,
             }
 
             # 添加应用ID和密钥（如果有）
-            if user_llm_config.app_id:
-                config["app_id"] = user_llm_config.app_id
-            if user_llm_config.app_secret:
-                config["app_secret"] = user_llm_config.app_secret
+            if llm_provider_config.app_id:
+                config["app_id"] = llm_provider_config.app_id
+            if llm_provider_config.app_secret:
+                config["app_secret"] = llm_provider_config.app_secret
 
             return LLMProviderFactory.create_provider(
-                "volcano", user_llm_config.api_key, **config
+                "volcano", llm_provider_config.api_key, **config
             )
         else:
             raise APIException(
@@ -352,20 +351,20 @@ class XhsCopyGenerationService:
 
         return messages
 
-    def _get_model_name(self, app, user_llm_config, has_images=False):
+    def _get_model_name(self, app, llm_provider_config, has_images=False):
         """
         获取模型名称，优先使用用户配置的模型
         
         Args:
             app: 应用对象，包含配置信息
-            user_llm_config: 用户LLM配置
+            llm_provider_config: 用户LLM配置
             has_images: 是否有图片输入
             
         Returns:
             模型名称
         """
         # 首先检查应用配置中是否指定了模型
-        provider_type = user_llm_config.provider_type
+        provider_type = llm_provider_config.provider_type
         
         # 从应用配置中获取模型名称
         model_name = None
@@ -479,7 +478,7 @@ class XhsCopyGenerationService:
     model_name,
     temperature,
     max_tokens,
-    user_llm_config_id,
+    llm_provider_config_id,
     contains_forbidden_words=False,
     detected_forbidden_words=None,
     estimated_cost=0.0,
@@ -500,7 +499,7 @@ class XhsCopyGenerationService:
             "model_name": model_name,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "user_llm_config_id": user_llm_config_id,
+            "llm_provider_config_id": llm_provider_config_id,
             "contains_forbidden_words": contains_forbidden_words,
             "detected_forbidden_words": detected_forbidden_words or [],
             "estimated_cost": estimated_cost,

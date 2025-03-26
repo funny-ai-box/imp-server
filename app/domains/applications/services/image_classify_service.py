@@ -17,10 +17,9 @@ from app.infrastructure.database.repositories.image_classify_repository import (
 from app.infrastructure.database.repositories.llm_repository import (
     LLMProviderRepository,
     LLMModelRepository,
+    LLMProviderConfigRepository
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
-)
+
 
 from app.infrastructure.llm_providers.factory import LLMProviderFactory
 from app.core.exceptions import ValidationException, NotFoundException, APIException
@@ -44,14 +43,14 @@ class ImageClassifyService:
         user_app_repository: Optional[UserAppRepository] = None,
         provider_repository: Optional[LLMProviderRepository] = None,
         model_repository: Optional[LLMModelRepository] = None,
-        user_llm_config_repository: Optional[UserLLMConfigRepository] = None,
+        llm_provider_config_repository: Optional[LLMProviderConfigRepository] = None,
     ):
         """初始化服务"""
         self.classify_repo = classify_repository
         self.user_app_repo = user_app_repository
         self.provider_repo = provider_repository
         self.model_repo = model_repository
-        self.user_llm_config_repo = user_llm_config_repository
+        self.llm_provider_config_repository = llm_provider_config_repository
 
     def get_all_classifications(
         self, user_id: str, page: int = 1, per_page: int = 20, **filters
@@ -212,42 +211,42 @@ class ImageClassifyService:
     def _get_provider_type(self, app, user_id):
         """获取提供商类型"""
         # 验证用户LLM配置
-        if not app.user_llm_config_id or not self.user_llm_config_repo:
+        if not app.llm_provider_config_id or not self.llm_provider_config_repository:
             raise APIException(
                 "未配置LLM服务，请先为应用绑定LLM配置", CLASSIFICATION_FAILED
             )
 
         try:
-            user_llm_config = self.user_llm_config_repo.get_by_id(
-                app.user_llm_config_id, user_id
+            llm_provider_config = self.llm_provider_config_repository.get_by_id(
+                app.llm_provider_config_id, user_id
             )
-            return user_llm_config.provider_type
+            return llm_provider_config.provider_type
         except Exception as e:
             raise APIException(f"无法获取LLM配置: {str(e)}", CLASSIFICATION_FAILED)
 
     def _get_llm_provider(self, app, user_id):
         """获取LLM服务提供商"""
         # 验证用户LLM配置
-        if not app.user_llm_config_id:
+        if not app.llm_provider_config_id:
             raise APIException(
                 "未配置LLM服务，请先为应用绑定LLM配置", CLASSIFICATION_FAILED
             )
 
-        if not self.user_llm_config_repo:
+        if not self.llm_provider_config_repository:
             raise APIException("系统未配置LLM服务接口", CLASSIFICATION_FAILED)
 
         try:
-            user_llm_config = self.user_llm_config_repo.get_by_id(
-                app.user_llm_config_id, user_id
+            llm_provider_config = self.llm_provider_config_repository.get_by_id(
+                app.llm_provider_config_id, user_id
             )
         except Exception as e:
             raise APIException(f"无法获取LLM配置: {str(e)}", CLASSIFICATION_FAILED)
 
         # 创建AI提供商实例
-        provider_type = user_llm_config.provider_type
+        provider_type = llm_provider_config.provider_type
 
         if provider_type == "Volcano":
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException(
                     "您尚未配置火山引擎API密钥，请先在LLM配置中设置API密钥",
                     CLASSIFICATION_FAILED,
@@ -255,11 +254,11 @@ class ImageClassifyService:
 
             return LLMProviderFactory.create_provider(
                 "volcano",
-                user_llm_config.api_key,
-                api_base_url=user_llm_config.api_base_url,
-                api_version=user_llm_config.api_version,
-                timeout=user_llm_config.request_timeout,
-                max_retries=user_llm_config.max_retries,
+                llm_provider_config.api_key,
+                api_base_url=llm_provider_config.api_base_url,
+                api_version=llm_provider_config.api_version,
+                timeout=llm_provider_config.request_timeout,
+                max_retries=llm_provider_config.max_retries,
             )
         else:
             raise APIException(

@@ -10,8 +10,8 @@ from app.infrastructure.database.repositories.app_template_repository import (
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
+from app.infrastructure.database.repositories.llm_repository import (
+    LLMProviderConfigRepository,
 )
 from app.api.middleware.auth import auth_required
 
@@ -70,10 +70,10 @@ def instantiate_app():
     db_session = g.db_session
     template_repo = AppTemplateRepository(db_session)
     user_app_repo = UserAppRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
+    llm_provider_config_repo = LLMProviderConfigRepository(db_session)
 
     user_app_service = UserAppService(
-        user_app_repo, template_repo, user_llm_config_repo
+        user_app_repo, template_repo, llm_provider_config_repo
     )
 
     # 实例化应用

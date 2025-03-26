@@ -11,8 +11,8 @@ from app.core.status_codes import CLASSIFICATION_FAILED, PARAMETER_ERROR, INVALI
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
+from app.infrastructure.database.repositories.llm_repository import (
+    LLMProviderConfigRepository,
 )
 from app.infrastructure.database.repositories.image_classify_repository import (
     ImageClassifyRepository,
@@ -53,35 +53,35 @@ def _validate_and_extract_params(request):
     return data
 
 
-def _create_llm_provider(user_llm_config):
+def _create_llm_provider(llm_provider_config):
     """创建LLM提供商实例"""
-    provider_type = user_llm_config.provider_type
+    provider_type = llm_provider_config.provider_type
     
     try:
         if provider_type == "Volcano":
             # 检查API密钥是否有效
-            if not user_llm_config.api_key:
+            if not llm_provider_config.api_key:
                 raise APIException("您尚未配置火山引擎API密钥", CLASSIFICATION_FAILED)
                 
             # 记录连接尝试（用于调试）
-            logger.info(f"正在尝试连接到火山引擎，基础URL为: {user_llm_config.api_base_url}")
+            logger.info(f"正在尝试连接到火山引擎，基础URL为: {llm_provider_config.api_base_url}")
             
             # 火山引擎可能需要额外的配置项
             config = {
-                "timeout": user_llm_config.request_timeout or 60,
-                "max_retries": user_llm_config.max_retries or 3,
-                "api_base_url": user_llm_config.api_base_url,
-                "api_version": user_llm_config.api_version
+                "timeout": llm_provider_config.request_timeout or 60,
+                "max_retries": llm_provider_config.max_retries or 3,
+                "api_base_url": llm_provider_config.api_base_url,
+                "api_version": llm_provider_config.api_version
             }
 
             # 添加应用ID和密钥（如果有）
-            if user_llm_config.app_id:
-                config["app_id"] = user_llm_config.app_id
-            if user_llm_config.app_secret:
-                config["app_secret"] = user_llm_config.app_secret
+            if llm_provider_config.app_id:
+                config["app_id"] = llm_provider_config.app_id
+            if llm_provider_config.app_secret:
+                config["app_secret"] = llm_provider_config.app_secret
 
             return LLMProviderFactory.create_provider(
-                "volcano", user_llm_config.api_key, **config
+                "volcano", llm_provider_config.api_key, **config
             )
         else:
             raise APIException(f"图片分类仅支持Volcano提供商，当前配置: {provider_type}", CLASSIFICATION_FAILED)
@@ -376,7 +376,7 @@ def external_classify():
         # 初始化服务和仓库
         db_session = g.db_session
         user_app_repo = UserAppRepository(db_session)
-        user_llm_config_repo = UserLLMConfigRepository(db_session)
+        llm_provider_config_repo = LLMProviderConfigRepository(db_session)
         classify_repo = ImageClassifyRepository(db_session)
 
         # 提取数据
@@ -385,7 +385,7 @@ def external_classify():
 
         # 从应用中获取配置和关联的LLM配置
         config = app.published_config.get("config", {})
-        user_llm_config_id = app.user_llm_config_id
+        llm_provider_config_id = app.llm_provider_config_id
 
         # 创建分类记录
         start_time = time.time()
@@ -410,12 +410,12 @@ def external_classify():
 
         try:
             # 获取用户LLM配置
-            user_llm_config = user_llm_config_repo.get_by_id(
-                user_llm_config_id, user_id
+            llm_provider_config = llm_provider_config_repo.get_by_id(
+                llm_provider_config_id, user_id
             )
 
             # 创建LLM提供商实例
-            ai_provider = _create_llm_provider(user_llm_config)
+            ai_provider = _create_llm_provider(llm_provider_config)
 
             # 准备提示词
             messages = _prepare_prompts(config, image_url, categories)
@@ -433,7 +433,7 @@ def external_classify():
                 "model_name": model_name,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "provider_type": user_llm_config.provider_type
+                "provider_type": llm_provider_config.provider_type
             })
 
             # 调用LLM服务
@@ -472,7 +472,7 @@ def external_classify():
                 reasoning=parsed_result.get("reasoning", ""),
                 tokens_used=tokens_used,
                 duration_ms=duration_ms,
-                provider_type=user_llm_config.provider_type,
+                provider_type=llm_provider_config.provider_type,
                 model_name=used_model,
                 raw_request=raw_request,
                 raw_response=response
@@ -480,7 +480,7 @@ def external_classify():
 
             # 创建调试信息对象
             debug_info = {
-                "provider_type": user_llm_config.provider_type,
+                "provider_type": llm_provider_config.provider_type,
                 "requested_model": model_name,
                 "actual_model": used_model,
                 "config_used": config,
@@ -491,7 +491,7 @@ def external_classify():
                 },
                 "duration_ms": duration_ms,
                 "app_id": app.id,
-                "user_llm_config_id": user_llm_config_id
+                "llm_provider_config_id": llm_provider_config_id
             }
 
             # 格式化结果
@@ -505,7 +505,7 @@ def external_classify():
                 "duration_ms": classification.duration_ms,
                 "status": classification.status,
                 "model": used_model,
-                "provider_type": user_llm_config.provider_type,
+                "provider_type": llm_provider_config.provider_type,
                 "debug": debug_info  # 添加调试信息
             }
 

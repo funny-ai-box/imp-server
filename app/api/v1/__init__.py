@@ -9,8 +9,8 @@ from app.api.v1.auth.auth import auth_bp
 
 # 导入基础能力蓝图
 
-from app.api.v1.foundation.llm_provider import llm_provider_bp
-from app.api.v1.foundation.user_llm_config import user_llm_config_bp
+from app.api.v1.foundation.llm_provider import llm_provider_bp,llm_provider_config_bp
+
 
 # 导入应用相关蓝图
 from app.api.v1.applications.xhs_copy import xhs_copy_bp
@@ -34,7 +34,7 @@ api_v1_bp.register_blueprint(auth_bp, url_prefix="/auth")
 foundation_bp = Blueprint("foundation", __name__, url_prefix="/foundation")
 
 foundation_bp.register_blueprint(llm_provider_bp, url_prefix="/llm_provider")
-foundation_bp.register_blueprint(user_llm_config_bp, url_prefix="/user_llm_configs")
+foundation_bp.register_blueprint(llm_provider_config_bp, url_prefix="/llm_provider_configs")
 api_v1_bp.register_blueprint(foundation_bp)
 
 

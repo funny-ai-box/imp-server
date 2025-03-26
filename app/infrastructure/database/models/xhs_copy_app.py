@@ -40,7 +40,7 @@ class XhsCopyGeneration(db.Model):
     model_version = Column(String(50), nullable=True, comment="模型版本")
     temperature = Column(Float, nullable=True, comment="使用的温度参数")
     max_tokens = Column(Integer, nullable=True, comment="设置的最大令牌数")
-    user_llm_config_id = Column(Integer, nullable=True, comment="使用的LLM配置ID")
+    llm_provider_config_id = Column(Integer, nullable=True, comment="使用的LLM配置ID")
     
     # 成本信息
     estimated_cost = Column(Float, default=0.0, comment="估算成本")

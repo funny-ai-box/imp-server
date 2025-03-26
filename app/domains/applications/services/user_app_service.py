@@ -13,8 +13,8 @@ from app.infrastructure.database.repositories.app_template_repository import (
 from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
-from app.infrastructure.database.repositories.user_llm_config_repository import (
-    UserLLMConfigRepository,
+from app.infrastructure.database.repositories.llm_repository import (
+    LLMProviderConfigRepository,
 )
 
 logger = logging.getLogger(__name__)
@@ -27,12 +27,12 @@ class UserAppService:
         self,
         user_app_repository: UserAppRepository,
         app_template_repository: Optional[AppTemplateRepository] = None,
-        user_llm_config_repository: Optional[UserLLMConfigRepository] = None,
+        llm_provider_config_repository: Optional[LLMProviderConfigRepository] = None,
     ):
         """初始化服务"""
         self.user_app_repo = user_app_repository
         self.app_template_repo = app_template_repository
-        self.user_llm_config_repo = user_llm_config_repository
+        self.llm_provider_config_repository = llm_provider_config_repository
 
     def instantiate_from_template(
         self, template_id: str, user_id: str, custom_config: Dict[str, Any] = None
@@ -118,13 +118,13 @@ class UserAppService:
 
         # 验证LLM配置
         if (
-            "user_llm_config_id" in app_data
-            and app_data["user_llm_config_id"]
-            and self.user_llm_config_repo
+            "llm_provider_config_id" in app_data
+            and app_data["llm_provider_config_id"]
+            and self.llm_provider_config_repository
         ):
             try:
-                llm_config = self.user_llm_config_repo.get_by_id(
-                    app_data["user_llm_config_id"], user_id
+                llm_config = self.llm_provider_config_repository.get_by_id(
+                    app_data["llm_provider_config_id"], user_id
                 )
                 # 验证LLM配置是否有效
                 if not llm_config.is_active:
@@ -170,13 +170,13 @@ class UserAppService:
 
         # 验证LLM配置
         if (
-            "user_llm_config_id" in app_data
-            and app_data["user_llm_config_id"]
-            and self.user_llm_config_repo
+            "llm_provider_config_id" in app_data
+            and app_data["llm_provider_config_id"]
+            and self.llm_provider_config_repository
         ):
             try:
-                llm_config = self.user_llm_config_repo.get_by_id(
-                    app_data["user_llm_config_id"], user_id
+                llm_config = self.llm_provider_config_repository.get_by_id(
+                    app_data["llm_provider_config_id"], user_id
                 )
                 # 验证LLM配置是否有效
                 if not llm_config.is_active:
@@ -215,14 +215,14 @@ class UserAppService:
             raise ValidationException("应用配置不能为空")
 
         # 如果有关联的LLM配置，验证该配置是否有效
-        user_llm_config_id = app.user_llm_config_id
-        print("user_llm_config_id", user_llm_config_id)
-        if user_llm_config_id and self.user_llm_config_repo:
+        llm_provider_config_id = app.llm_provider_config_id
+        print("llm_provider_config_id", llm_provider_config_id)
+        if llm_provider_config_id and self.llm_provider_config_repository:
             try:
-                user_llm_config = self.user_llm_config_repo.get_by_id(
-                    user_llm_config_id, user_id
+                llm_provider_config = self.llm_provider_config_repository.get_by_id(
+                    llm_provider_config_id, user_id
                 )
-                if not user_llm_config.is_active:
+                if not llm_provider_config.is_active:
                     raise ValidationException(
                         "关联的LLM配置未激活，无法发布"
                     )
@@ -242,7 +242,7 @@ class UserAppService:
             "name": app.name,
             "description": app.description,
             "config": app.config,
-            "user_llm_config_id": app.user_llm_config_id,
+            "llm_provider_config_id": app.llm_provider_config_id,
             "published_at": datetime.now().isoformat(),
         }
 
@@ -394,7 +394,7 @@ class UserAppService:
             "app_type": app.app_type,
             "description": app.description,
             "config": app.config,
-            "user_llm_config_id": app.user_llm_config_id,
+            "llm_provider_config_id": app.llm_provider_config_id,
             "app_key": app.app_key,
             "published": app.published,
             "is_default": app.is_default,
@@ -410,10 +410,10 @@ class UserAppService:
                 result["published_at"] = app.published_config["published_at"]
 
         # 添加LLM配置名称（如果可用）
-        if app.user_llm_config_id and self.user_llm_config_repo:
+        if app.llm_provider_config_id and self.llm_provider_config_repository:
             try:
-                llm_config = self.user_llm_config_repo.get_by_id(
-                    app.user_llm_config_id, app.user_id
+                llm_config = self.llm_provider_config_repository.get_by_id(
+                    app.llm_provider_config_id, app.user_id
                 )
                 result["llm_config_name"] = llm_config.name
                 result["llm_provider_type"] = llm_config.provider_type

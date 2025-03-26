@@ -5,7 +5,7 @@ from app.core.responses import success_response
 from app.core.exceptions import ValidationException
 from app.domains.applications.services.user_app_service import UserAppService
 from app.infrastructure.database.repositories.user_app_repository import UserAppRepository
-from app.infrastructure.database.repositories.user_llm_config_repository import UserLLMConfigRepository
+from app.infrastructure.database.repositories.llm_repository import LLMProviderConfigRepository
 from app.api.middleware.auth import auth_required
 
 user_app_bp = Blueprint("user_app", __name__, url_prefix="/user_app")
@@ -20,8 +20,8 @@ def list_user_apps():
     # 初始化存储库和服务
     db_session = g.db_session
     user_app_repo = UserAppRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+    llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+    user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
     
     # 获取应用列表
     apps = user_app_service.get_all_apps(user_id)
@@ -47,8 +47,8 @@ def get_user_app():
     # 初始化存储库和服务
     db_session = g.db_session
     user_app_repo = UserAppRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+    llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+    user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
     
     # 获取应用
     app = user_app_service.get_app(app_id, user_id)
@@ -71,8 +71,8 @@ def update_user_app():
     # 初始化存储库和服务
     db_session = g.db_session
     user_app_repo = UserAppRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+    llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+    user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
     
     # 更新应用
     app = user_app_service.update_app(app_id, data, user_id)
@@ -95,8 +95,8 @@ def publish_user_app():
     db_session = g.db_session
     user_app_repo = UserAppRepository(db_session)
     app_template_repo = AppTemplateRepository(db_session)
-    user_llm_config_repo = UserLLMConfigRepository(db_session)
-    user_app_service = UserAppService(user_app_repo,app_template_repo, user_llm_config_repo)
+    llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+    user_app_service = UserAppService(user_app_repo,app_template_repo, llm_provider_config_repo)
     
     # 发布应用
     app = user_app_service.publish_app(app_id, user_id)
@@ -118,8 +118,8 @@ def unpublish_user_app():
    # 初始化存储库和服务
    db_session = g.db_session
    user_app_repo = UserAppRepository(db_session)
-   user_llm_config_repo = UserLLMConfigRepository(db_session)
-   user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+   llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+   user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
    
    # 取消发布应用
    app = user_app_service.unpublish_app(app_id, user_id)
@@ -141,8 +141,8 @@ def delete_user_app():
    # 初始化存储库和服务
    db_session = g.db_session
    user_app_repo = UserAppRepository(db_session)
-   user_llm_config_repo = UserLLMConfigRepository(db_session)
-   user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+   llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+   user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
    
    # 删除应用
    user_app_service.delete_app(app_id, user_id)
@@ -164,8 +164,8 @@ def regenerate_app_key():
    # 初始化存储库和服务
    db_session = g.db_session
    user_app_repo = UserAppRepository(db_session)
-   user_llm_config_repo = UserLLMConfigRepository(db_session)
-   user_app_service = UserAppService(user_app_repo, user_llm_config_repo)
+   llm_provider_config_repo = LLMProviderConfigRepository(db_session)
+   user_app_service = UserAppService(user_app_repo, llm_provider_config_repo)
    
    # 重新生成密钥
    app = user_app_service.regenerate_app_key(app_id, user_id)
