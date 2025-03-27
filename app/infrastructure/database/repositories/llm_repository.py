@@ -38,6 +38,26 @@ class LLMModelRepository:
         """
         return self.db.query(LLMModel).filter(LLMModel.provider_id == provider_id).all()
     
+    def get_by_model_id(self, model_id: str) -> LLMModel:
+        """
+        根据模型标识符获取模型
+        
+        参数:
+            model_id: 模型标识符
+            
+        返回:
+            模型实例
+            
+        异常:
+            NotFoundException: 模型不存在
+        """
+        model = self.db.query(LLMModel).filter(LLMModel.model_id == model_id).first()
+        
+        if not model:
+            raise NotFoundException(f"未找到标识符为{model_id}的AI模型", MODEL_NOT_FOUND)
+        
+        return model
+    
     def get_by_id(self, model_id: int, provider_id: int) -> LLMModel:
         """
         根据ID获取特定提供商的模型

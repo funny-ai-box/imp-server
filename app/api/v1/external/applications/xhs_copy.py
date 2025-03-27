@@ -10,6 +10,7 @@ from app.infrastructure.database.repositories.user_app_repository import (
     UserAppRepository,
 )
 from app.infrastructure.database.repositories.llm_repository import (
+    LLMModelRepository,
     LLMProviderConfigRepository,
 )
 from app.infrastructure.database.repositories.xhs_copy_repository import (
@@ -167,8 +168,13 @@ def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
 
     user_prompt += requirements
 
-    if image_urls and len(image_urls) > 0:
-        # 如果有图片，使用支持图片的格式
+    # 检查模型类型是否支持多模态
+    model_type = config.get("model_type", "")
+    is_multimodal = model_type == "multimodal" or model_type == "vision"
+    
+    # 在模型支持多模态并且有图片的情况下，使用多模态格式
+    if is_multimodal and image_urls and len(image_urls) > 0:
+        # 如果有图片且模型支持多模态，使用支持图片的格式
         content = [{"type": "text", "text": user_prompt}]
         
         # 最多添加4张图片（避免超出模型限制）
@@ -180,7 +186,7 @@ def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
             {"role": "user", "content": content}
         ]
     else:
-        # 如果没有图片，使用普通文本格式
+        # 如果没有图片或模型不支持多模态，使用普通文本格式
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -238,35 +244,6 @@ def _parse_generation_result(content, config):
             body = "\n".join(lines[1:]).strip()
 
     return {"title": title, "body": body, "tags": tags}
-
-
-def _get_model_id(config, provider_type, has_images=False):
-    """获取模型名称，优先使用配置的模型"""
-    # 从应用配置中获取模型名称
-    model_id = config.get("model_id")
-    
-    # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
-    if has_images and provider_type == "Volcano":
-        vision_model_id = config.get("vision_model_id")
-        if vision_model_id:
-            return vision_model_id
-    
-    # 如果配置中指定了模型，使用配置的模型
-    if model_id:
-        return model_id
-    
-    # 否则使用默认模型
-    if provider_type == "OpenAI":
-        return "gpt-4o"
-    elif provider_type == "Claude":
-        return "claude-3-opus-20240229"
-    elif provider_type == "Volcano":
-        if has_images:
-            return "doubao-1.5-vision-pro-32k-250115"
-        else:
-            return "deepseek-r1-250120"
-    else:
-        return None
 
 
 def _create_generation_record(
@@ -329,6 +306,19 @@ def _update_generation_success(
 
     return generation_repo.update(generation_id, user_id, update_data)
 
+def _get_model_type(model_id,  model_repo=None):
+
+    if model_id and model_repo:
+        try:
+            # 尝试使用model_id查询模型信息
+            model = model_repo.get_by_model_id(model_id)
+            if model:
+                return model.model_type
+            
+            # 如果没有查到模型，记录日志
+            logger.warning(f"模型ID {model_id} 未在数据库中找到，使用默认模型类型")
+        except Exception as e:
+            logger.error(f"查询模型信息时出错: {str(e)}")
 
 def _update_generation_failure(
     generation_repo, generation_id, user_id, error_message, duration_ms, raw_request=None
@@ -374,6 +364,7 @@ def external_generate():
         user_app_repo = UserAppRepository(db_session)
         llm_provider_config_repo = LLMProviderConfigRepository(db_session)
         generation_repo = XhsCopyGenerationRepository(db_session)
+        model_repo = LLMModelRepository(db_session)
         
         # 获取系统预置禁用词（如果需要）
         forbidden_words_repo = ForbiddenWordsRepository(db_session)
@@ -391,7 +382,7 @@ def external_generate():
         prompt = data["prompt"]
         image_urls = data.get("image_urls", [])
         custom_forbidden_words = data.get("forbidden_words", [])
-   
+
         # 合并系统预置禁用词和自定义禁用词
         all_forbidden_words = list(set(system_forbidden_words + custom_forbidden_words))
 
@@ -399,12 +390,17 @@ def external_generate():
 
         # 从应用中获取配置
         config = app.published_config
-
         
-        # 检查config中是否包含provider_type
+        
         provider_type = config.get("provider_type")
         if not provider_type:
             raise ValidationException("应用配置中未指定provider_type", PARAMETER_ERROR)
+        
+        model_id = config.get("model_id")
+        if not model_id:
+            raise ValidationException("应用配置中未指定model_id", PARAMETER_ERROR)
+        
+
 
         # 创建生成记录
         start_time = time.time()
@@ -426,15 +422,22 @@ def external_generate():
 
             # 创建LLM提供商实例
             ai_provider = _create_llm_provider(llm_provider_config)
+            model_type = _get_model_type(model_id, model_repo)
+            print(f"model_type: {model_type}")
 
             # 准备提示词，包含禁用词
-            messages = _prepare_prompts(config, prompt, image_urls, all_forbidden_words)
+            messages = _prepare_prompts(
+                config={**config, "model_type": model_type}, 
+                prompt=prompt,
+                image_urls=image_urls,
+                custom_forbidden_words=all_forbidden_words
+            )
 
             # 确定是否有图片
             has_images = bool(image_urls) and len(image_urls) > 0
             
             # 获取模型名称
-            model_id = _get_model_id(config, provider_type, has_images)
+            
 
             # 生成文案参数
             max_tokens = config.get("max_tokens", 800)
