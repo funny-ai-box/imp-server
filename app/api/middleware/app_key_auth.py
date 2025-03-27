@@ -97,7 +97,7 @@ def app_key_required(f):
             app = user_app_repo.get_by_app_key(app_key)
             if not app:
                 logger.warning(f"Invalid app key: {app_key}")
-                raise NotFoundException("无效的应用密钥", APPLICATION_NOT_FOUND)
+                raise NotFoundException("无效的应用密钥")
             
             # 验证应用是否已发布
             if not app.published:

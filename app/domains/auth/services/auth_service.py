@@ -18,12 +18,6 @@ from app.core.exceptions import (
 )
 from app.core.status_codes import (
     AUTH_FAILED,
-    TOKEN_EXPIRED,
-    INVALID_TOKEN,
-    PARAMETER_ERROR,
-    ACCOUNT_LOCKED,
-    PASSWORD_ERROR,
-    USER_NOT_FOUND,
     USER_ALREADY_EXISTS,
 )
 from app.infrastructure.database.repositories.auth_repository import AuthRepository
