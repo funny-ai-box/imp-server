@@ -32,29 +32,30 @@ def _validate_and_extract_params(request):
     """验证和提取请求参数"""
     data = request.get_json()
     if not data:
-        raise ValidationException("请求数据不能为空", PARAMETER_ERROR)
+        raise ValidationException("请求数据不能为空")
 
     # 提取提示词
     prompt = data.get("prompt")
     if not prompt:
-        raise ValidationException("提示词不能为空", PARAMETER_ERROR)
+        raise ValidationException("提示词不能为空")
 
     # 验证图片URL
     image_urls = data.get("image_urls", [])
     if image_urls:
         for url in image_urls:
+            print(url)
             if not isinstance(url, str) or not url.startswith(("http://", "https://")):
-                raise ValidationException(f"无效的图片URL: {url}", PARAMETER_ERROR)
+                raise ValidationException(f"无效的图片URL: {url}")
 
     custom_forbidden_words = data.get("forbidden_words", [])
     if custom_forbidden_words and not isinstance(custom_forbidden_words, list):
-        raise ValidationException("自定义禁用词必须是数组格式", PARAMETER_ERROR)
+        raise ValidationException("自定义禁用词必须是数组格式")
     
     # 确保所有禁用词是字符串
     if custom_forbidden_words:
         for word in custom_forbidden_words:
             if not isinstance(word, str):
-                raise ValidationException("禁用词必须是字符串", PARAMETER_ERROR)
+                raise ValidationException("禁用词必须是字符串")
 
     return data
 
@@ -158,7 +159,7 @@ def _prepare_prompts(config, prompt, image_urls, custom_forbidden_words=None):
     # 添加禁用词要求
     if custom_forbidden_words and len(custom_forbidden_words) > 0:
         forbidden_words_str = "、".join(custom_forbidden_words)
-        requirements += f"\n5. 严禁在文案中使用以下词语: {forbidden_words_str}"
+        requirements += f"\n5. 请特别注意，严禁输出以下词语: {forbidden_words_str}"
     
     requirements += (
         "\n\n请按照以下格式输出：\n【标题】\n【正文】\n【标签】标签1 标签2 标签3..."
@@ -390,16 +391,15 @@ def external_generate():
         prompt = data["prompt"]
         image_urls = data.get("image_urls", [])
         custom_forbidden_words = data.get("forbidden_words", [])
-        
+   
         # 合并系统预置禁用词和自定义禁用词
         all_forbidden_words = list(set(system_forbidden_words + custom_forbidden_words))
+
         
 
         # 从应用中获取配置
         config = app.published_config
-        print("检查配置中是否包含provider_type")
-        print(config)
-        print("---------------------")
+
         
         # 检查config中是否包含provider_type
         provider_type = config.get("provider_type")

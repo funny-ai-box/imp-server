@@ -14,6 +14,8 @@ from app.api.middleware.auth import auth_required
 
 llm_provider_bp = Blueprint("llm_provider", __name__)
 
+llm_provider_config_bp = Blueprint("llm_provider_config", __name__)
+
 
 @llm_provider_bp.route("/provider_list", methods=["GET"])
 @auth_required
@@ -100,9 +102,6 @@ def get_model():
     
     return success_response(model, "获取模型信息成功")
 
-
-
-llm_provider_config_bp = Blueprint("llm_provider_config", __name__)
 
 
 @llm_provider_config_bp.route("/list", methods=["GET"])
