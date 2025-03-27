@@ -353,12 +353,12 @@ class UserAppService:
                 )
                 
         # 验证模型名称（可选）
-        if "model_name" in config and not isinstance(config["model_name"], str):
-            raise ValidationException("model_name必须是字符串", PARAMETER_ERROR)
+        if "model_id" in config and not isinstance(config["model_id"], str):
+            raise ValidationException("model_id必须是字符串", PARAMETER_ERROR)
             
         # 验证视觉模型名称（可选）
-        if "vision_model_name" in config and not isinstance(config["vision_model_name"], str):
-            raise ValidationException("vision_model_name必须是字符串", PARAMETER_ERROR)
+        if "vision_model_id" in config and not isinstance(config["vision_model_id"], str):
+            raise ValidationException("vision_model_id必须是字符串", PARAMETER_ERROR)
             
     def _validate_image_classify_config(self, config: Dict[str, Any]) -> None:
         """验证图片分类应用配置"""

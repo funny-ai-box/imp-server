@@ -36,11 +36,11 @@ class XhsCopyGeneration(db.Model):
 
     # 模型信息
     provider_type = Column(String(50), nullable=True, comment="提供商类型(OpenAI/Claude/Volcano等)")
-    model_name = Column(String(100), nullable=True, comment="使用的模型名称")
+    model_id = Column(String(100), nullable=True, comment="使用的模型名称")
     model_version = Column(String(50), nullable=True, comment="模型版本")
     temperature = Column(Float, nullable=True, comment="使用的温度参数")
     max_tokens = Column(Integer, nullable=True, comment="设置的最大令牌数")
-    llm_provider_config_id = Column(Integer, nullable=True, comment="使用的LLM配置ID")
+
     
     # 成本信息
     estimated_cost = Column(Float, default=0.0, comment="估算成本")

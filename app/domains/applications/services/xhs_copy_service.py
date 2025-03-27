@@ -100,6 +100,9 @@ class XhsCopyGenerationService:
 
         try:
             # 检查配置中是否包含provider_type
+            print("检查配置中是否包含provider_type")
+            print(config)
+            print("---------------------")
             provider_type = config.get("provider_type")
             if not provider_type:
                 raise ValidationException("应用配置中未指定provider_type")
@@ -114,7 +117,7 @@ class XhsCopyGenerationService:
             has_images = bool(image_urls) and len(image_urls) > 0
 
             # 获取模型名称
-            model_name = self._get_model_name(config, provider_type, has_images)
+            model_id = self._get_model_id(config, provider_type, has_images)
 
             # 生成文案
             max_tokens = config.get("max_tokens", 800)
@@ -123,7 +126,7 @@ class XhsCopyGenerationService:
             response = self._call_llm_service(
                 ai_provider=ai_provider,
                 messages=messages,
-                model=model_name,
+                model=model_id,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -149,7 +152,7 @@ class XhsCopyGenerationService:
                 tokens_used,
                 duration_ms,
                 provider_type,
-                model_name,
+                model_id,
                 temperature,
                 max_tokens,
             )
@@ -344,20 +347,20 @@ class XhsCopyGenerationService:
 
         return messages
 
-    def _get_model_name(self, config, provider_type, has_images=False):
+    def _get_model_id(self, config, provider_type, has_images=False):
         """获取模型名称，优先使用配置的模型"""
         # 从应用配置中获取模型名称
-        model_name = config.get("model_name")
+        model_id = config.get("model_id")
         
         # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
         if has_images and provider_type == "Volcano":
-            vision_model_name = config.get("vision_model_name")
-            if vision_model_name:
-                return vision_model_name
+            vision_model_id = config.get("vision_model_id")
+            if vision_model_id:
+                return vision_model_id
         
         # 如果配置中指定了模型，使用配置的模型
-        if model_name:
-            return model_name
+        if model_id:
+            return model_id
         
         # 否则使用默认模型
         if provider_type == "OpenAI":
@@ -451,7 +454,7 @@ class XhsCopyGenerationService:
         tokens_used,
         duration_ms,
         provider_type,
-        model_name,
+        model_id,
         temperature,
         max_tokens,
     ):
@@ -469,7 +472,7 @@ class XhsCopyGenerationService:
             "tokens_completion": tokens_completion,
             "duration_ms": duration_ms,
             "provider_type": provider_type,
-            "model_name": model_name,
+            "model_id": model_id,
             "temperature": temperature,
             "max_tokens": max_tokens
         }
@@ -507,7 +510,7 @@ class XhsCopyGenerationService:
             "error_message": generation.error_message,
             "tokens_used": generation.tokens_used,
             "provider_type": generation.provider_type,
-            "model_name": generation.model_name,
+            "model_id": generation.model_id,
             "duration_ms": generation.duration_ms,
             "ip_address": generation.ip_address,
             "user_rating": generation.user_rating,

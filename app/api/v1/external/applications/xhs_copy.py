@@ -239,20 +239,20 @@ def _parse_generation_result(content, config):
     return {"title": title, "body": body, "tags": tags}
 
 
-def _get_model_name(config, provider_type, has_images=False):
+def _get_model_id(config, provider_type, has_images=False):
     """获取模型名称，优先使用配置的模型"""
     # 从应用配置中获取模型名称
-    model_name = config.get("model_name")
+    model_id = config.get("model_id")
     
     # 如果有图片且使用火山引擎，检查是否有专门的视觉模型配置
     if has_images and provider_type == "Volcano":
-        vision_model_name = config.get("vision_model_name")
-        if vision_model_name:
-            return vision_model_name
+        vision_model_id = config.get("vision_model_id")
+        if vision_model_id:
+            return vision_model_id
     
     # 如果配置中指定了模型，使用配置的模型
-    if model_name:
-        return model_name
+    if model_id:
+        return model_id
     
     # 否则使用默认模型
     if provider_type == "OpenAI":
@@ -296,7 +296,7 @@ def _update_generation_success(
     tokens_completion,
     duration_ms,
     provider_type,
-    model_name,
+    model_id,
     temperature,
     max_tokens,
     contains_forbidden_words=False,
@@ -316,7 +316,7 @@ def _update_generation_success(
         "tokens_completion": tokens_completion,
         "duration_ms": duration_ms,
         "provider_type": provider_type,
-        "model_name": model_name,
+        "model_id": model_id,
         "temperature": temperature,
         "max_tokens": max_tokens,
         "contains_forbidden_words": contains_forbidden_words,
@@ -393,9 +393,13 @@ def external_generate():
         
         # 合并系统预置禁用词和自定义禁用词
         all_forbidden_words = list(set(system_forbidden_words + custom_forbidden_words))
+        
 
         # 从应用中获取配置
-        config = app.published_config.get("config", {})
+        config = app.published_config
+        print("检查配置中是否包含provider_type")
+        print(config)
+        print("---------------------")
         
         # 检查config中是否包含provider_type
         provider_type = config.get("provider_type")
@@ -430,7 +434,7 @@ def external_generate():
             has_images = bool(image_urls) and len(image_urls) > 0
             
             # 获取模型名称
-            model_name = _get_model_name(config, provider_type, has_images)
+            model_id = _get_model_id(config, provider_type, has_images)
 
             # 生成文案参数
             max_tokens = config.get("max_tokens", 800)
@@ -441,7 +445,7 @@ def external_generate():
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "model": model_name,
+                "model": model_id,
                 "has_images": has_images,
                 "config": config,
             }
@@ -451,7 +455,7 @@ def external_generate():
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                model=model_name,
+                model=model_id,
             )
 
             # 解析生成结果
@@ -462,7 +466,7 @@ def external_generate():
             tokens_used = response.get("usage", {}).get("total_tokens", 0)
             
             # 获取实际使用的模型（可能与请求的不同）
-            used_model = response.get("model", model_name)
+            used_model = response.get("model", model_id)
 
             # 计算处理时间
             duration_ms = int((time.time() - start_time) * 1000)
@@ -493,7 +497,7 @@ def external_generate():
                 tokens_completion=response.get("usage", {}).get("completion_tokens", 0),
                 duration_ms=duration_ms,
                 provider_type=provider_type,
-                model_name=used_model,
+                model_id=used_model,
                 temperature=temperature,
                 max_tokens=max_tokens,
                 contains_forbidden_words=contains_forbidden,
@@ -511,7 +515,7 @@ def external_generate():
             # 创建调试信息对象
             debug_info = {
                 "provider_type": provider_type,
-                "requested_model": model_name,
+                "requested_model": model_id,
                 "actual_model": used_model,
                 "request_params": request_params,
                 "config_used": config,

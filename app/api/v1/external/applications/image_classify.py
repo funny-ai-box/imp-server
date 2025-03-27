@@ -91,15 +91,12 @@ def _create_llm_provider(llm_provider_config):
         raise APIException(f"创建LLM提供商失败: {str(e)}", CLASSIFICATION_FAILED)
 
 
-def _get_model_name(config=None):
+def _get_model_id(config=None):
     """获取模型名称，优先使用用户配置的模型"""
-    # 如果配置中指定了视觉模型，使用配置的模型
-    if config and "vision_model_name" in config:
-        return config["vision_model_name"]
     
     # 如果配置中指定了模型，使用配置的模型
-    if config and "model_name" in config:
-        return config["model_name"]
+    if config and "model_id" in config:
+        return config["model_id"]
         
     # 否则使用默认模型
     return "doubao-1.5-vision-pro-32k-250115"  # 火山引擎视觉模型
@@ -303,7 +300,7 @@ def _update_classification_success(
     tokens_used,
     duration_ms,
     provider_type=None,
-    model_name=None,
+    model_id=None,
     raw_request=None,
     raw_response=None
 ):
@@ -323,8 +320,8 @@ def _update_classification_success(
     # 添加模型信息（如果提供）
     if provider_type:
         update_data["provider_type"] = provider_type
-    if model_name:
-        update_data["model_name"] = model_name
+    if model_id:
+        update_data["model_id"] = model_id
     
     # 添加原始请求/响应数据（如果提供）
     if raw_request:
@@ -389,7 +386,7 @@ def external_classify():
         categories = data["categories"]
 
         # 从应用中获取配置
-        config = app.published_config.get("config", {})
+        config = app.published_config
         
         # 检查config中是否包含provider_type
         provider_type = config.get("provider_type")
@@ -434,7 +431,7 @@ def external_classify():
             messages = _prepare_prompts(config, image_url, categories)
 
             # 确定模型名称
-            model_name = _get_model_name(config)
+            model_id = _get_model_id(config)
 
             # 分类参数
             max_tokens = config.get("max_tokens", 800)
@@ -443,19 +440,19 @@ def external_classify():
             # 更新原始请求信息
             raw_request.update({
                 "messages": messages,
-                "model_name": model_name,
+                "model_id": model_id,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
                 "provider_type": provider_type
             })
 
             # 调用LLM服务
-            logger.info(f"开始调用图片分类服务: 模型={model_name}, 图片URL={image_url}")
+            logger.info(f"开始调用图片分类服务: 模型={model_id}, 图片URL={image_url}")
             response = ai_provider.generate_chat_completion(
                 messages=messages,
                 max_tokens=max_tokens,
                 temperature=temperature,
-                model=model_name,
+                model=model_id,
             )
             logger.info(f"图片分类调用完成，获取到响应，用时{int((time.time() - start_time) * 1000)}ms")
 
@@ -472,7 +469,7 @@ def external_classify():
             duration_ms = int((time.time() - start_time) * 1000)
 
             # 获取实际使用的模型（可能与请求的不同）
-            used_model = response.get("model", model_name)
+            used_model = response.get("model", model_id)
 
             # 更新分类记录
             classification = _update_classification_success(
@@ -486,7 +483,7 @@ def external_classify():
                 tokens_used=tokens_used,
                 duration_ms=duration_ms,
                 provider_type=provider_type,
-                model_name=used_model,
+                model_id=used_model,
                 raw_request=raw_request,
                 raw_response=response
             )
@@ -494,7 +491,7 @@ def external_classify():
             # 创建调试信息对象
             debug_info = {
                 "provider_type": provider_type,
-                "requested_model": model_name,
+                "requested_model": model_id,
                 "actual_model": used_model,
                 "config_used": config,
                 "tokens": {

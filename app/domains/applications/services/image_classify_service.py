@@ -120,7 +120,7 @@ class ImageClassifyService:
             messages = self._prepare_prompts(config, image_url, categories)
 
             # 获取模型名称
-            model_name = self._get_model_name(config)
+            model_id = self._get_model_id(config)
 
             # 生成分类结果
             max_tokens = config.get("max_tokens", 2000)
@@ -129,7 +129,7 @@ class ImageClassifyService:
             response = self._call_llm_service(
                 ai_provider=ai_provider,
                 messages=messages,
-                model=model_name,
+                model=model_id,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
@@ -156,7 +156,7 @@ class ImageClassifyService:
                 tokens_used,
                 duration_ms,
                 provider_type,
-                model_name
+                model_id
             )
 
             return self._format_classification(updated_classification)
@@ -324,14 +324,14 @@ class ImageClassifyService:
 
         return messages
 
-    def _get_model_name(self, config):
+    def _get_model_id(self, config):
         """获取模型名称，优先使用配置的模型"""
         # 从应用配置中获取模型名称
-        model_name = config.get("model_name") or config.get("vision_model_name")
+        model_id = config.get("model_id") or config.get("vision_model_id")
         
         # 如果配置中指定了模型，使用配置的模型
-        if model_name:
-            return model_name
+        if model_id:
+            return model_id
         
         # 否则使用默认模型
         return "doubao-1.5-vision-pro-32k-250115"  # 默认火山引擎视觉模型
@@ -464,7 +464,7 @@ class ImageClassifyService:
         }
 
     def _update_classification_success(
-        self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms, provider_type, model_name
+        self, classification_id, user_id, category_id, category_name, confidence, reasoning, tokens_used, duration_ms, provider_type, model_id
     ):
         """更新分类成功状态，支持无法分类的情况"""
         status = "completed" if category_id is not None else "unclassified"
@@ -478,7 +478,7 @@ class ImageClassifyService:
             "tokens_used": tokens_used,
             "duration_ms": duration_ms,
             "provider_type": provider_type,
-            "model_name": model_name
+            "model_id": model_id
         }
 
         return self.classify_repo.update(classification_id, user_id, update_data)
@@ -510,7 +510,7 @@ class ImageClassifyService:
             "error_message": record.error_message,
             "tokens_used": record.tokens_used,
             "provider_type": record.provider_type,
-            "model_name": record.model_name,
+            "model_id": record.model_id,
             "duration_ms": record.duration_ms,
             "ip_address": record.ip_address,
             "user_rating": record.user_rating,
