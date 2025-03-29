@@ -27,6 +27,8 @@ class ImageClassification(db.Model):
     error_message = Column(Text, nullable=True, comment="错误信息")
     tokens_used = Column(Integer, default=0, comment="使用的令牌数")
     duration_ms = Column(Integer, default=0, comment="处理耗时(毫秒)")
+    provider_type = Column(String(50), nullable=True, comment="提供商类型(OpenAI/Claude/Volcano等)")
+    model_id = Column(String(100), nullable=True, comment="使用的模型名称")
 
     # 系统信息
     created_at = Column(DateTime, default=datetime.now, comment="创建时间")

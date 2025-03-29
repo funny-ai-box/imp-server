@@ -63,14 +63,16 @@ class XhsCopyGenerationService:
         return self._format_generation(generation)
 
     def create_generation(
-        self,
-        prompt: str,
-        image_urls: List[str],
-        app_id: Optional[str] = None,
-        user_id: str = None,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    self,
+    prompt: str,
+    image_urls: List[str],
+    app_id: Optional[str] = None,
+    user_id: str = None,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
+    use_published_config: bool = False,  # 新增参数，指示是否使用已发布配置
+    forbidden_words: Optional[List[str]] = None  # 新增参数，支持传入禁用词
+) -> Dict[str, Any]:
         """创建并执行文案生成
 
         Args:
@@ -91,12 +93,21 @@ class XhsCopyGenerationService:
 
         # 获取应用配置
         app = self._get_generation_app(app_id, user_id)
-        config = app.config
+        if use_published_config and app.published and app.published_config:
+            config = app.published_config
+            logger.info(f"使用已发布配置: {app.id}")
+        else:
+            config = app.config
+            logger.info(f"使用应用配置: {app.id}")
 
         # 创建生成记录
         generation = self._create_generation_record(
             prompt, image_urls, app.id, user_id, ip_address, user_agent
         )
+
+         
+        
+        
 
         try:
             # 检查配置中是否包含provider_type
@@ -112,7 +123,7 @@ class XhsCopyGenerationService:
             ai_provider = self._create_llm_provider(llm_provider_config)
 
             # 准备提示词
-            messages = self._prepare_prompts(config, prompt, image_urls)
+            messages = self._prepare_prompts(config, prompt, image_urls, forbidden_words)
 
             has_images = bool(image_urls) and len(image_urls) > 0
 
@@ -293,11 +304,13 @@ class XhsCopyGenerationService:
             logger.error(f"Failed to create LLM provider: {str(e)}")
             raise APIException(f"创建LLM提供商失败: {str(e)}", GENERATION_FAILED)
 
-    def _prepare_prompts(self, config, prompt, image_urls):
+    def _prepare_prompts(self, config, prompt, image_urls, forbidden_words=None):
         """准备提示词"""
         system_prompt = config.get(
             "system_prompt", "你是一位专业的小红书博主，擅长编写吸引人的小红书文案。"
         )
+        if forbidden_words:
+            system_prompt += f"\n请避免使用禁用词：{', '.join(forbidden_words)}"
 
         # 获取用户提示词模板
         user_prompt_template = config.get(
@@ -323,11 +336,24 @@ class XhsCopyGenerationService:
             "\n\n请按照以下格式输出：\n【标题】\n【正文】\n【标签】标签1 标签2 标签3..."
         )
 
+        if forbidden_words and len(forbidden_words) > 0:
+            forbidden_words_str = "、".join(forbidden_words)
+            requirements += f"\n5. 请特别注意，严禁输出以下词语: {forbidden_words_str}"
+    
+        requirements += (
+            "\n\n请按照以下格式输出：\n【标题】\n【正文】\n【标签】标签1 标签2 标签3..."
+        )
+        
+
         user_prompt += requirements
 
         # 创建消息内容
-        if image_urls and len(image_urls) > 0:
-            # 如果有图片，使用支持图片的格式
+        model_type = config.get("model_type", "")
+        is_multimodal = model_type == "multimodal" or model_type == "vision"
+        
+        # 在模型支持多模态并且有图片的情况下，使用多模态格式
+        if is_multimodal and image_urls and len(image_urls) > 0:
+            # 如果有图片且模型支持多模态，使用支持图片的格式
             content = [{"type": "text", "text": user_prompt}]
             
             # 最多添加4张图片（避免超出模型限制）
@@ -339,7 +365,7 @@ class XhsCopyGenerationService:
                 {"role": "user", "content": content}
             ]
         else:
-            # 如果没有图片，使用普通文本格式
+            # 如果没有图片或模型不支持多模态，使用普通文本格式
             messages = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}

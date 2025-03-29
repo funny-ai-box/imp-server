@@ -74,6 +74,7 @@ class ImageClassifyService:
         user_id: str = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
+        use_published_config: bool = False 
     ) -> Dict[str, Any]:
         """创建并执行图片分类
 
@@ -95,7 +96,13 @@ class ImageClassifyService:
 
         # 获取应用配置
         app = self._get_classification_app(app_id, user_id)
-        config = app.config
+        
+        if use_published_config and app.published and app.published_config:
+            config = app.published_config
+            logger.info(f"使用已发布配置: {app.id}")
+        else:
+            config = app.config
+            logger.info(f"使用应用配置: {app.id}")
 
         # 创建分类记录
         classification = self._create_classification_record(
